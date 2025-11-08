@@ -55,11 +55,16 @@ A research narrative of building, iterating, and evaluating an audio-only music 
 
 Interpretation: Energetic is acoustically distinct; emotional has moderate separability; peaceful overlaps heavily with emotional in this acoustic feature space.
 
-### 2.4 Dataset size and splits
+## 2.4 Dataset Size and Splits
 
-- Total songs: 150
-- After segmentation: 900 training samples (2×45s segments per song; pre-augmentation)
-- Validation set: 224 samples across 3 classes
+- **Total original songs**: 148 across 5 mood categories
+- **After class merging**: 3 categories (energetic, peaceful, emotional)
+- **Training samples**: 1,124 spectrograms after segmentation & augmentation
+  - Energetic: 228 samples
+  - Peaceful: 416 samples
+  - Emotional: 480 samples
+- **Validation set**: 224 samples (20% split)
+- **Best model**: `best_model.h5` with 66% overall accuracy
 
 ## 3. Key Findings
 
@@ -94,6 +99,12 @@ _Bar chart of F1-scores (Energetic 88%, Emotional 74%, Peaceful 27%) illustratin
 ![Feature Analysis](models/feature_analysis.png)
 
 _Boxplots and distributions highlighting that energetic differs in brightness/contrast, whereas peaceful and emotional exhibit strongly overlapping distributions; annotated panel notes the minuscule separation score (0.007)._
+
+### 4.5 Training Progression and Convergence
+
+![Training History](models/training_history.png)
+
+_Training curves showing model convergence over 50+ epochs. The steady decrease in loss and increase in accuracy demonstrates effective learning, while the gap between training and validation curves indicates moderate overfitting - a common challenge with limited musical data._
 
 ## 5. Technical Stack and Deep Learning Pipeline
 

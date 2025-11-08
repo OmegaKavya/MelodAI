@@ -29,6 +29,13 @@ Folder snapshot (key dirs):
 - **Input**: Mel-spectrograms (224×224 RGB images)
 - **Training**: Gradient-based optimization with advanced regularization
 
+## 📁 Dataset
+
+- **148 songs** across 5 original mood categories
+- **Merged into 3 classes** based on acoustic similarity
+- **1,124 training spectrograms** after audio processing
+- **Trained on 224x224 RGB mel-spectrograms**
+
 ## Prerequisites
 
 - Python 3.9–3.11
