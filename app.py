@@ -422,7 +422,7 @@ def main():
                         """, unsafe_allow_html=True)
                         
                         # Progress bar
-                        st.progress(conf / 100)
+                        st.progress(float(conf / 100))
                     
                     st.markdown('</div>', unsafe_allow_html=True)
                 
