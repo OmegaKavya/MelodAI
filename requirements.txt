@@ -26,3 +26,7 @@ google-api-python-client>=2.100
 
 # YouTube downloader CLI (provides `yt-dlp` command)
 yt-dlp>=2023.07.06
+
+# Web app and API
+streamlit>=1.25
+requests>=2.31
