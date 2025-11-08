@@ -4,8 +4,17 @@
 [![Deep Learning](https://img.shields.io/badge/Deep%20Learning-CNN%2FTensorFlow-orange)](https://tensorflow.org)
 [![Audio Analysis](https://img.shields.io/badge/Audio-Spectrograms-blue)](https://librosa.org)
 ![Status](https://img.shields.io/badge/status-active-success)
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://melod-ai.streamlit.app/)
 
 Classify music mood from short audio clips by converting them into mel-spectrogram images and training a CNN.
+
+## 🚀 Live Demo
+
+Try the hosted app on Streamlit Cloud:
+
+- https://melod-ai.streamlit.app/
+
+The deployment uses a `packages.txt` to install `ffmpeg` so yt-dlp and pydub can post-process audio (ffmpeg/ffprobe).
 
 ## What this project does
 
@@ -110,6 +119,29 @@ Deactivate environment:
 
 ```bash
 deactivate
+```
+
+## Run the Streamlit app locally
+
+1. Ensure ffmpeg is installed and on PATH (see platform setup above).
+2. Install Python dependencies (in an activated venv):
+
+```bash
+pip install -r requirements.txt
+```
+
+3. Run the app:
+
+```bash
+streamlit run app.py
+```
+
+If yt-dlp complains about ffmpeg/ffprobe, verify your PATH includes the ffmpeg binaries. On some environments, adding `/usr/bin` to PATH helps:
+
+```python
+# Add near the top of app.py, after imports
+import os
+os.environ['PATH'] += os.pathsep + '/usr/bin'
 ```
 
 ## Typical workflow
