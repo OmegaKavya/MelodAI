@@ -95,7 +95,7 @@ _Bar chart of F1-scores (Energetic 88%, Emotional 74%, Peaceful 27%) illustratin
 
 _Boxplots and distributions highlighting that energetic differs in brightness/contrast, whereas peaceful and emotional exhibit strongly overlapping distributions; annotated panel notes the minuscule separation score (0.007)._
 
-## 5. Technical Stack and Pipeline
+## 5. Technical Stack and Deep Learning Pipeline
 
 - TensorFlow/Keras — custom CNN architectures, training callbacks (EarlyStopping, ReduceLROnPlateau, ModelCheckpoint, CSVLogger), label smoothing.
 - Librosa — audio loading, mel-spectrograms, HPSS, chroma, spectral contrast.
@@ -103,7 +103,7 @@ _Boxplots and distributions highlighting that energetic differs in brightness/co
 - Data augmentation — pitch shifting and time-stretching to widen the training distribution.
 - OpenCV/Pillow — image resizing and I/O for consistent CNN input size (224×224).
 
-### 5.1 Model Architectures (Summary)
+### 5.1 Deep Learning Architectures (CNNs)
 
 1. Advanced CNN (used when sample count smaller):
 
@@ -119,7 +119,7 @@ _Boxplots and distributions highlighting that energetic differs in brightness/co
    - GlobalAvgPool → Dense(512) → Dense(256) → softmax
    - Higher representational power; better for larger, more varied sets.
 
-### 5.2 Key Training Techniques
+### 5.2 Deep Learning Training Techniques
 
 - Class weighting to counter imbalance (via `compute_class_weight`).
 - Label smoothing (0.1) to reduce overconfidence.

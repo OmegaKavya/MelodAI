@@ -1,7 +1,8 @@
-# MelodAI - Music Classification using AI
+# MelodAI: Deep Learning for Music Mood Classification
 
 ![Python](https://img.shields.io/badge/python-3.8%2B-blue)
-![Machine Learning](https://img.shields.io/badge/ML-Audio%20Classification-orange)
+[![Deep Learning](https://img.shields.io/badge/Deep%20Learning-CNN%2FTensorFlow-orange)](https://tensorflow.org)
+[![Audio Analysis](https://img.shields.io/badge/Audio-Spectrograms-blue)](https://librosa.org)
 ![Status](https://img.shields.io/badge/status-active-success)
 
 Classify music mood from short audio clips by converting them into mel-spectrogram images and training a CNN.
@@ -20,6 +21,13 @@ Folder snapshot (key dirs):
 - `mel_spectrograms_resized/` — 224×224 versions used for training
 - `models/` — saved Keras models and training artifacts
 - `scripts/` — CLI scripts for data prep, training, and evaluation
+
+## 🧠 Deep Learning Tech Stack
+
+- **Framework**: TensorFlow/Keras
+- **Architecture**: Custom CNNs (Residual & Advanced)
+- **Input**: Mel-spectrograms (224×224 RGB images)
+- **Training**: Gradient-based optimization with advanced regularization
 
 ## Prerequisites
 
