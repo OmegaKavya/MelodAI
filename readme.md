@@ -1,4 +1,8 @@
-# MelodAI
+# MelodAI - Music Classification using AI
+
+![Python](https://img.shields.io/badge/python-3.8%2B-blue)
+![Machine Learning](https://img.shields.io/badge/ML-Audio%20Classification-orange)
+![Status](https://img.shields.io/badge/status-active-success)
 
 Classify music mood from short audio clips by converting them into mel-spectrogram images and training a CNN.
 
