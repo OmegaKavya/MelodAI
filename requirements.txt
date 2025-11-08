@@ -1,0 +1,28 @@
+# Core ML and data
+numpy>=1.23
+scipy>=1.10
+matplotlib>=3.7
+seaborn>=0.12
+scikit-learn>=1.2
+
+# Deep learning
+# For Apple Silicon, consider installing tensorflow-macos and tensorflow-metal instead.
+tensorflow>=2.12
+
+# Audio processing
+librosa>=0.10
+soundfile>=0.12
+pydub>=0.25
+
+# Computer vision / image IO
+opencv-python>=4.8
+Pillow>=9.5
+
+# Utilities
+tqdm>=4.65
+
+# Google APIs (for URL fetching)
+google-api-python-client>=2.100
+
+# YouTube downloader CLI (provides `yt-dlp` command)
+yt-dlp>=2023.07.06

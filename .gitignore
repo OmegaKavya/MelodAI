@@ -1,0 +1,66 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+*.egg
+*.eggs/
+build/
+dist/
+pip-wheel-metadata/
+.venv/
+venv/
+env/
+ENV/
+.python-version
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+
+# IDE/editor
+.vscode/
+.idea/
+
+# Logs and caches
+*.log
+logs/
+.cache/
+
+# Environment/secrets
+.env
+.env.*
+
+# Project data and generated artifacts
+# Raw audio and derived spectrograms are large; keep them out of git
+/data/
+/mel_spectrograms_*/
+/mel_spectrograms_resized/
+/mel_spectrograms_enhanced/
+/mel_spectrograms_fusion/
+
+# Models and training artifacts
+/models/*.h5
+/models/*.hdf5
+/models/*.keras
+/models/training_history.png
+/models/training_log.csv
+
+# Media downloads
+*.mp3
+*.wav
+*.webm
+*.mp4
+*.part
+
+# Temporary files
+/tmp/
+/temp/

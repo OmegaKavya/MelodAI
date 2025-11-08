@@ -1,0 +1,166 @@
+SONG_LINKS = {
+    "romantic": [
+        "https://www.youtube.com/watch?v=81qmmlsIE3k",  # Tum Hi Ho
+        "https://www.youtube.com/watch?v=zlt38OOqwDc",  # Raabta
+        "https://www.youtube.com/watch?v=Qdz5n1Xe5Qo",  # Tera Ban Jaunga
+        "https://www.youtube.com/watch?v=vgm1u2gPxzw",  # Raanjhanaa Title Track
+        "https://www.youtube.com/watch?v=wO5j3lv_9Fs",  # Samjhawan
+        "https://www.youtube.com/watch?v=mrdRHsIkK_c",  # Enna Sona
+        "https://www.youtube.com/watch?v=pIBoAh4OXhQ",  # Janam Janam
+        "https://www.youtube.com/watch?v=TGpG56pg3UU",  # Sun Saathiya
+        "https://www.youtube.com/watch?v=qoq8B8ThgEM",  # Tujh Mein Rab Dikhta Hai
+        "https://www.youtube.com/watch?v=atVof3pjT-I",  # Kaun Tujhe
+        "https://www.youtube.com/watch?v=mt9xg0mmt28",  # Tum Se Hi
+        "https://www.youtube.com/watch?v=BadBAMnPX0I",  # Pehli Nazar Mein
+        "https://www.youtube.com/watch?v=rTuxUAuJRyY",  # Tera Hone Laga Hoon
+        "https://www.youtube.com/watch?v=cYOB941gyXI",  # Hawayein
+        "https://www.youtube.com/watch?v=gIOea2pgfIo",  # Tere Sang Yaara
+        "https://www.youtube.com/watch?v=d0x2UbhbdmY",  # Hasi Ban Gaye
+        "https://www.youtube.com/watch?v=UcqI3uBKgTg",  # Tum Mile
+        "https://www.youtube.com/watch?v=SAcpESN_Fk4",  # Dil Diyan Gallan
+        "https://www.youtube.com/watch?v=AgX2II9si7w",  # Tujhe Kitna Chahne Lage
+        "https://www.youtube.com/watch?v=IImcBEHuDRI",  # Aaj Din Chadheya
+        "https://www.youtube.com/watch?v=FH-oV5nXblA",  # Agar Tum Mil Jao
+        "https://www.youtube.com/watch?v=cmMiyZaSELo",  # Khuda Jaane
+        "https://www.youtube.com/watch?v=EatzcaVJRMs",  # Tera Yaar Hoon Main
+        "https://www.youtube.com/watch?v=iSo9l950QLo",  # Shiddat Title Track
+        "https://www.youtube.com/watch?v=gvyUuxdRdR4",  # Raataan Lambiyan
+        "https://www.youtube.com/watch?v=YuXLN23ZGQo",  # O Saathi
+        "https://www.youtube.com/watch?v=pkzOBl1p7y4",  # Jeene Laga Hoon
+        "https://www.youtube.com/watch?v=AEIVhBS6baE",  # Gerua
+        "https://www.youtube.com/watch?v=kTXilT_KbUM",  # Tum Jo Aaye
+        "https://www.youtube.com/watch?v=aKdqQ5BC_S4"   # Main Rang Sharbaton Ka
+    ],
+
+    "sad": [
+        "https://www.youtube.com/watch?v=xRb8hxwN5zc",  # Agar Tum Saath Ho
+        "https://www.youtube.com/watch?v=284Ov7ysmfA",  # Channa Mereya
+        "https://www.youtube.com/watch?v=-Hb2DeHvvEg",  # Tujhe Bhula Diya
+        "https://www.youtube.com/watch?v=KwiDJclWo44",  # Tadap Tadap
+        "https://www.youtube.com/watch?v=II4CvWvgIsI",  # Bhula Dena
+        "https://www.youtube.com/watch?v=wzLo4iQTZqQ",  # Judaai
+        "https://www.youtube.com/watch?v=_iktURk0X-A",  # Phir Bhi Tumko Chaahunga
+        "https://www.youtube.com/watch?v=oWKgpB2zpgw",  # Abhi Mujh Mein Kahin
+        "https://www.youtube.com/watch?v=FJ55SHCzt88",  # Humdard
+        "https://www.youtube.com/watch?v=ta-W16uw7zg",  # Kabira (Encore)
+        "https://www.youtube.com/watch?v=H9UhPph--78",  # Chal Wahan Jaate Hain
+        "https://www.youtube.com/watch?v=VOLKJJvfAbg",  # Bekhayali
+        "https://www.youtube.com/watch?v=CExS4CBufng",  # Dard Dilo Ke
+        "https://www.youtube.com/watch?v=eK0IIyBlYew",  # Tera Zikr
+        "https://www.youtube.com/watch?v=6FURuLYrR_Q",  # Ae Dil Hai Mushkil (Title Track)
+        "https://www.youtube.com/watch?v=hoNb6HuNmU0",  # Khairiyat
+        "https://www.youtube.com/watch?v=wHD6z0vuWiM",  # Tu Hi Hai
+        "https://www.youtube.com/watch?v=ZGEGEeANyO8",  # Mann Mera
+        "https://www.youtube.com/watch?v=FIu4lel3S_o",  # Main Dhoondne Ko Zamaane Mein
+        "https://www.youtube.com/watch?v=KSGYVl4ZgRs",  # Lo Maan Liya
+        "https://www.youtube.com/watch?v=sVRwZEkXepg",  # Hamari Adhuri Kahani
+        "https://www.youtube.com/watch?v=maKDIvUVkQo",  # Dil Kyun Yeh Mera
+        "https://www.youtube.com/watch?v=P8PWN1OmZOA",  # Tu Jaane Na
+        "https://www.youtube.com/watch?v=PkhfKq9m0Uo",  # Tujhe Sochta Hoon
+        "https://www.youtube.com/watch?v=jwrCYAIdkeM",  # Zindagi Kuch Toh Bata
+        "https://www.youtube.com/watch?v=PVxc5mIHVuQ",  # Pachtaoge
+        "https://www.youtube.com/watch?v=AV8xUbIFhdc",  # Chitthi
+        "https://www.youtube.com/watch?v=gkCKTuR-ECI",  # Tum Ho
+        "https://www.youtube.com/watch?v=T94PHkuydcw",  # Kun Faya Kun
+        "https://www.youtube.com/watch?v=vdbP_3o73qI"   # Jaan Nisar
+    ],
+
+    "calm": [
+        "https://www.youtube.com/watch?v=T94PHkuydcw",  # Kun Faya Kun
+        "https://www.youtube.com/watch?v=fdubeMFwuGs",  # Ilahi
+        "https://www.youtube.com/watch?v=4YbAaRFk70o",  # Khwaja Mere Khwaja
+        "https://www.youtube.com/watch?v=l5sgIqzlPXc",  # Maula Mere Maula
+        "https://www.youtube.com/watch?v=6MgsHSAcI9k",  # Nadaan Parindey
+        "https://www.youtube.com/watch?v=vKDsAB1ccn0",  # Aayat
+        "https://www.youtube.com/watch?v=hM9QDpLHhdw",  # Alvida
+        "https://www.youtube.com/watch?v=R0XjwtP_iTY",  # Khaabon Ke Parinday
+        "https://www.youtube.com/watch?v=7mTDBsdfw88",  # Safarnama
+        "https://www.youtube.com/watch?v=eK0IIyBlYew",  # Tera Zikr
+        "https://www.youtube.com/watch?v=eN5dP3BZALQ",  # Shikayatein
+        "https://www.youtube.com/watch?v=A5pSnIwbpaM",  # Saiyyara
+        "https://www.youtube.com/watch?v=3TndEMf6zws",  # Ye Honsla
+        "https://www.youtube.com/watch?v=jHNNMj5bNQw",  # Kabira
+        "https://www.youtube.com/watch?v=qLCLvzTGFVM",  # Dil Mere
+        "https://www.youtube.com/watch?v=sFMRqxCexDk",  # Choo Lo
+        "https://www.youtube.com/watch?v=CaI0xNLpurM",  # Aashayein
+        "https://www.youtube.com/watch?v=XjRFk1Qq2Nw",  # Manzar Hai Yeh Naya
+        "https://www.youtube.com/watch?v=QYO6AlxiRE4",  # Subhanallah
+        "https://www.youtube.com/watch?v=aw0s2KaoA2Q",  # Tu Aashiqui Hai
+        "https://www.youtube.com/watch?v=akjdj6iHttY",  # Iktara
+        "https://www.youtube.com/watch?v=-m9IGI5EgyM",  # Aahista Aahista
+        "https://www.youtube.com/watch?v=jAUSF4_ygJg",  # Aas Paas Khuda
+        "https://www.youtube.com/watch?v=ewvddSUEONQ",  # Behti Hawa Sa Tha Woh
+        "https://www.youtube.com/watch?v=2mWaqsC3U7k",  # Phir Se Ud Chala
+        "https://www.youtube.com/watch?v=ZYGyuaEU2aA",  # Rehna Tu
+        "https://www.youtube.com/watch?v=HIbzXaBdwZw",  # Kabhi Kabhi Aditi
+        "https://www.youtube.com/watch?v=90hNT7UYlZA",  # Maula Mere Le Le Meri Jaan
+        "https://www.youtube.com/watch?v=P4fzOSVy6-o",  # Sajde
+        "https://www.youtube.com/watch?v=WuMWwPHTSoY"   # Dil Dhadakne Do
+    ],
+
+    "drive": [
+        "https://www.youtube.com/watch?v=9coA7bcpJII",  # Dil Chahta Hai
+        "https://www.youtube.com/watch?v=R0XjwtP_iTY",  # Khaabon Ke Parinday
+        "https://www.youtube.com/watch?v=fdubeMFwuGs",  # Ilahi
+        "https://www.youtube.com/watch?v=nJZcbidTutE",  # Sooraj Dooba Hai
+        "https://www.youtube.com/watch?v=Ax0G_P2dSBw",  # Zinda
+        "https://www.youtube.com/watch?v=7mTDBsdfw88",  # Safarnama
+        "https://www.youtube.com/watch?v=aHEbLVElUwY",  # Hairat
+        "https://www.youtube.com/watch?v=2mWaqsC3U7k",  # Phir Se Ud Chala
+        "https://www.youtube.com/watch?v=8HDTS80dlr4",  # Patakha Guddi
+        "https://www.youtube.com/watch?v=CaI0xNLpurM",  # Aashayein
+        "https://www.youtube.com/watch?v=KSwd2fYX9vg",  # Allah Ke Bande
+        "https://www.youtube.com/watch?v=Mo5tQDcs__g",  # Aao Milo Chalein
+        "https://www.youtube.com/watch?v=qTsAdjULqwg",  # Uff Teri Ada
+        "https://www.youtube.com/watch?v=5PbWtDGOL8A",  # Ik Junoon
+        "https://www.youtube.com/watch?v=cgHLvt0rxmM",  # Zinda Hoon Yaar
+        "https://www.youtube.com/watch?v=QfYzSutYy0M",  # Chal Chalein
+        "https://www.youtube.com/watch?v=WuMWwPHTSoY",  # Dil Dhadakne Do
+        "https://www.youtube.com/watch?v=kPtn26x8TZM",  # Ye Dooriyan
+        "https://www.youtube.com/watch?v=kl8T6tsOZJk",  # Shaam
+        "https://www.youtube.com/watch?v=ewvddSUEONQ",  # Behti Hawa Sa Tha Woh
+        "https://www.youtube.com/watch?v=FIaUYKLg5S4",  # Kholo Kholo
+        "https://www.youtube.com/watch?v=nWxz9BdtTPs",  # Tum Se Hi (Reprise)
+        "https://www.youtube.com/watch?v=rTuxUAuJRyY",  # Tera Hone Laga Hoon (Reprise)
+        "https://www.youtube.com/watch?v=xyngwCXoMdI",  # Jeene Ke Hai Chaar Din
+        "https://www.youtube.com/watch?v=jCEdTq3j-0U",  # Gallan Goodiyan
+        "https://www.youtube.com/watch?v=dXpG0kavjUo",  # Yeh Ishq Hai
+        "https://www.youtube.com/watch?v=Mo5tQDcs__g",  # Hum Jo Chalne Lage
+        "https://www.youtube.com/watch?v=0L0QinW_A70",  # Main Hoon Na
+        "https://www.youtube.com/watch?v=UDHklYvDkv8",  # Kyon
+        "https://www.youtube.com/watch?v=ru_5PA8cwkE"   # Mitwa
+    ],
+
+    "party": [
+        "https://www.youtube.com/watch?v=k4yXQkG2s1E",  # Kala Chashma
+        "https://www.youtube.com/watch?v=NTHz9ephYTw",  # Kar Gayi Chull
+        "https://www.youtube.com/watch?v=yIIGQB6EMAM",  # Bom Diggy Diggy
+        "https://www.youtube.com/watch?v=udra3Mfw2oo",  # London Thumakda
+        "https://www.youtube.com/watch?v=HoCwa6gnmM0",  # Nashe Si Chadh Gayi
+        "https://www.youtube.com/watch?v=II2EO3Nw4m0",  # Badtameez Dil
+        "https://www.youtube.com/watch?v=CvPdtf8Ijj4",  # The Breakup Song
+        "https://www.youtube.com/watch?v=l_MyUGq7pgs",  # Malhari
+        "https://www.youtube.com/watch?v=_KhQT-LGb-4",  # Aankh Marey
+        "https://www.youtube.com/watch?v=WuMWwPHTSoY",  # Dil Dhadakne Do
+        "https://www.youtube.com/watch?v=MtiCtsvNfgk",  # Gallan Goodiyan
+        "https://www.youtube.com/watch?v=wDIrpvH8MzE",  # Desi Girl
+        "https://www.youtube.com/watch?v=rW9_-dVCmrM",  # Saturday Saturday
+        "https://www.youtube.com/watch?v=Y7G-tYRzwYY",  # Subha Hone Na De
+        "https://www.youtube.com/watch?v=_YqzZWXkoq0",  # Party On My Mind
+        "https://www.youtube.com/watch?v=p062GuAhsRs",  # Baby Ko Bass Pasand Hai
+        "https://www.youtube.com/watch?v=8LZgzAZ2lpQ",  # Abhi Toh Party Shuru Hui Hai
+        "https://www.youtube.com/watch?v=RpuhD_xKadk",  # Sweety Tera Drama
+        "https://www.youtube.com/watch?v=YmXJp4RtBCM",  # Proper Patola
+        "https://www.youtube.com/watch?v=xWi8nDUjHGA",  # Dil Chori
+        "https://www.youtube.com/watch?v=9vkcYxbGdTE",  # Tera Hero Idhar Hai
+        "https://www.youtube.com/watch?v=b4b1cMVZOUU",  # Hookah Bar
+        "https://www.youtube.com/watch?v=o1RducJbUdc",  # Tumhi Ho Bandhu
+        "https://www.youtube.com/watch?v=TLnwqAarPkM",  # Let's Nacho
+        "https://www.youtube.com/watch?v=N_KpjLhJa1k",  # High Heels
+        "https://www.youtube.com/watch?v=mVxMqmeeLXc",  # Cutiepie
+        "https://www.youtube.com/watch?v=nJZcbidTutE",  # Sooraj Dooba Hai
+        "https://www.youtube.com/watch?v=sAzlWScHTc4",  # Naacho Naacho
+        "https://www.youtube.com/watch?v=40IlftR0R_U",  # Jee Karda
+        "https://www.youtube.com/watch?v=FQS7i2z1CoA"   # Main Tera Boyfriend
+    ]
+}
