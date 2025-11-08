@@ -127,50 +127,47 @@ def download_youtube_audio(youtube_url):
         return None
 
 def create_spectrogram(audio_path, target_size=(224, 224)):
-    """Fixed spectrogram generation that matches training"""
+    """Simple version matching ImageDataGenerator rescale=1./255"""
     try:
-        # Load audio with exact training parameters
+        # Load audio
         y, sr = librosa.load(audio_path, sr=22050, duration=30, mono=True)
         
-        # Extract first 30 seconds consistently
         if len(y) > 30 * sr:
             y = y[:30 * sr]
         
-        # EXACT mel spectrogram parameters (must match your training)
+        # Create mel spectrogram
         mel = librosa.feature.melspectrogram(
-            y=y, 
-            sr=sr,
-            n_mels=128,      # Must match training
-            hop_length=512,  # Must match training  
-            n_fft=2048,      # Must match training
-            fmin=20,
-            fmax=8000
+            y=y, sr=sr, n_mels=128, hop_length=512, n_fft=2048, fmin=20, fmax=8000
         )
-        
-        # Convert to dB - this is critical!
         mel_db = librosa.power_to_db(mel, ref=np.max)
         
-        # Ensure correct shape for model
-        if mel_db.shape[1] < 224:  # Pad if needed
+        # Ensure correct shape
+        if mel_db.shape[1] < 224:
             pad_width = 224 - mel_db.shape[1]
-            mel_db = np.pad(mel_db, ((0, 0), (0, pad_width)), mode='constant')
-        elif mel_db.shape[1] > 224:  # Truncate if needed
+            mel_db = np.pad(mel_db, ((0, 0), (0, pad_width)), mode='constant', constant_values=-80)
+        elif mel_db.shape[1] > 224:
             mel_db = mel_db[:, :224]
         
-        # Create 3-channel image (like RGB)
+        # Create 3-channel image
         img_3channel = np.stack([mel_db] * 3, axis=-1)
         
-        # Normalize to [0, 1] range
-        img_normalized = (img_3channel - np.min(img_3channel)) / (np.max(img_3channel) - np.min(img_3channel) + 1e-8)
+        # 🎯 SIMPLE & CORRECT: Convert to 0-255 then divide by 255
+        # First scale from dB range [-80,0] to [0,1]
+        img_0_1 = (img_3channel - (-80)) / 80.0
         
-        st.write(f"🔧 Spectrogram debug - Min: {img_3channel.min():.2f}, Max: {img_3channel.max():.2f}, Normalized range: [{img_normalized.min():.3f}, {img_normalized.max():.3f}]")
+        # Convert to 0-255 (like actual images)
+        img_0_255 = (img_0_1 * 255).astype(np.uint8)
         
-        return img_normalized
+        # FINAL: Apply rescale=1./255 (EXACTLY like your training)
+        img_final = img_0_255.astype(np.float32) / 255.0
+        
+        st.write(f"🎯 Using EXACT training preprocessing")
+        st.write(f"📊 Final input range: [{img_final.min():.3f}, {img_final.max():.3f}]")
+        
+        return img_final
         
     except Exception as e:
         st.error(f"Error creating spectrogram: {e}")
-        st.write(f"Audio length: {len(y) if 'y' in locals() else 'N/A'}")
-        st.write(f"Sample rate: {sr if 'sr' in locals() else 'N/A'}")
         return None
 
 def plot_spectrogram(spectrogram):
