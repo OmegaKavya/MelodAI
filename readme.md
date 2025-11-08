@@ -187,8 +187,3 @@ python scripts/evaluate_model.py
 - OpenCV import errors: `pip install --upgrade opencv-python`
 - Google API quota errors: slow requests, or rotate API key
 - Mismatched Python env: ensure venv is activated before running scripts
-
-## Notes
-
-- Large artifacts (`data/`, `mel_spectrograms_*`, models) are ignored by `.gitignore` by default.
-- Add a license file if you plan to share this project publicly.
