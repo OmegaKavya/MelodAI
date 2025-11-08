@@ -51,7 +51,6 @@ logs/
 /models/*.h5
 /models/*.hdf5
 /models/*.keras
-/models/training_history.png
 /models/training_log.csv
 
 # Media downloads

@@ -95,6 +95,12 @@ _Bar chart of F1-scores (Energetic 88%, Emotional 74%, Peaceful 27%) illustratin
 
 _Boxplots and distributions highlighting that energetic differs in brightness/contrast, whereas peaceful and emotional exhibit strongly overlapping distributions; annotated panel notes the minuscule separation score (0.007)._
 
+### 4.5 Training Progression and Convergence
+
+![Training History](models/training_history.png)
+
+_Training curves showing model convergence over 50+ epochs. The steady decrease in loss and increase in accuracy demonstrates effective learning, while the gap between training and validation curves indicates moderate overfitting - a common challenge with limited musical data._
+
 ## 5. Technical Stack and Deep Learning Pipeline
 
 - TensorFlow/Keras — custom CNN architectures, training callbacks (EarlyStopping, ReduceLROnPlateau, ModelCheckpoint, CSVLogger), label smoothing.
