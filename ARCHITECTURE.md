@@ -104,6 +104,46 @@ figure conceals that completely.
 The retrained model discriminates all three classes. It is not yet a better
 classifier by the headline metric; it is an honest one.
 
+### What is actually separable
+
+Five architectures across two representations all reach roughly two thirds
+and fail the same way. At that point the question stops being which model
+and becomes what the data supports, which a projection of the representation
+answers directly.
+
+![Embedding map](models/embedding_map.png)
+
+Each point is one song, its YAMNet frame embeddings averaged, projected with
+t-SNE. `energetic` occupies its own region. `emotional` and `peaceful` have
+no boundary between them at all.
+
+The picture is suggestive; these numbers are not, because they are computed
+in the full 1024 dimensions before any projection:
+
+| class | nearest neighbour shares its label | chance | lift |
+|---|---|---|---|
+| energetic | **85.2%** | 20.6% | **4.13x** |
+| emotional | 59.6% | 43.5% | 1.37x |
+| peaceful | 44.7% | 35.9% | 1.25x |
+
+Silhouette score across the three classes is **0.073**, where 1 is tight and
+well separated and 0 is indistinguishable.
+
+So `energetic` is a real region of the space and the other two are one
+cloud. No classifier reading this representation can separate them, which is
+why every attempt failed identically. A taxonomy sweep agrees: `party`
+against everything else scores **26 of 26** on validation and 105 of 105 on
+training, where always predicting the majority would score 21 of 26 and
+catch none of the five.
+
+The corpus explains it. Mainstream Bollywood occupies a narrow band of
+tempo, instrumentation and production; a party track genuinely leaves that
+band, while romantic, sad and calm tracks do not. Arousal is recoverable
+from this audio. Valence, at 131 songs, is not.
+
+That is a measurement, not a failure, and it is the result this project
+reports.
+
 ### Transfer learning
 
 The from-scratch network reaches 97% training accuracy against 63%
