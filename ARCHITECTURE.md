@@ -104,6 +104,39 @@ figure conceals that completely.
 The retrained model discriminates all three classes. It is not yet a better
 classifier by the headline metric; it is an honest one.
 
+### Transfer learning
+
+The from-scratch network reaches 97% training accuracy against 63%
+validation. That 34 point gap is not a regularisation problem to tune away:
+a 4.8M parameter network is being asked to learn what edges and textures are
+from 844 images. `scripts/train_transfer.py` fits a head on an
+ImageNet-pretrained EfficientNetB0 instead, freezing the backbone first and
+then unfreezing its top third at a 100x lower learning rate, with BatchNorm
+statistics kept frozen throughout.
+
+All three models, scored per song on the identical 25-song clean holdout:
+
+| | overall | 95% CI | emotional | energetic | peaceful | train/val gap |
+|---|---|---|---|---|---|---|
+| original | 64.0% | 45-80% | 100% | 100% | **0%** | - |
+| from scratch, fixed data | 64.0% | 45-80% | 45% | 100% | 67% | 98% / 64% |
+| transfer + fine-tune | **68.0%** | 48-83% | 55% | 100% | 67% | **54% / 62%** |
+
+The honest reading: on 25 songs those three intervals overlap almost
+entirely, so **the four point gain is not a result anyone should quote.**
+What is a result is the last column. The transfer model's training accuracy
+sits *below* its validation accuracy, because augmentation applies only to
+training; it has stopped memorising. The from-scratch model's 34 point gap
+was the ceiling, and it is gone.
+
+That matters more than the headline, because overfitting was what capped
+every previous attempt. The remaining errors are now a data problem - 141
+songs, with `energetic` at 29 - rather than a capacity problem.
+
+An audio-pretrained backbone (YAMNet, PANNs) should beat an ImageNet one,
+which knows photographs rather than music. That needs the source MP3s rather
+than the rendered spectrograms, so it is the next piece of work.
+
 ### Two data defects behind that
 
 **Contradictory labels.** The source CSV lists 11 songs under more than one
