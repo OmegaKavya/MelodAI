@@ -1,246 +1,119 @@
-# MelodAI: Deep Learning for Music Mood Classification
+# MelodAI
 
-![Python](https://img.shields.io/badge/python-3.8%2B-blue)
-[![Deep Learning](https://img.shields.io/badge/Deep%20Learning-CNN%2FTensorFlow-orange)](https://tensorflow.org)
-[![Audio Analysis](https://img.shields.io/badge/Audio-Spectrograms-blue)](https://librosa.org)
-![Status](https://img.shields.io/badge/status-active-success)
+**What a neural network can actually tell about a Bollywood track, and what it cannot.**
+
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://melod-ai.streamlit.app/)
 
-Classify music mood from short audio clips by converting them into mel-spectrogram images and training a CNN.
+This began as a three-way mood classifier reporting 66% accuracy. It is now
+an energy detector that reports 26 of 26, plus the measurement explaining why
+the other two thirds of the original problem are not solvable with this data.
 
-## 🚀 Live Demo
+That change is the project.
 
-Try the hosted app on Streamlit Cloud:
+---
 
-- https://melod-ai.streamlit.app/
+## The finding
 
-The deployment uses a `packages.txt` to install `ffmpeg` so yt-dlp and pydub can post-process audio (ffmpeg/ffprobe).
+![What the model can and cannot separate](models/embedding_map.png)
 
-## Architecture
+One point per song: YAMNet embeddings, projected. `energetic` occupies its own
+region. `emotional` and `peaceful` have no boundary between them.
 
-The engineering detail, including the three-channel representation, the
-inference lifecycle and what the accuracy figure does and does not mean, is
-in [ARCHITECTURE.md](ARCHITECTURE.md).
+Measured in the full 1024 dimensions, before any projection:
 
-## What this project does
+| class | nearest neighbour shares its label | chance | lift |
+|---|---|---|---|
+| energetic | **85.2%** | 20.6% | **4.13x** |
+| emotional | 59.6% | 43.5% | 1.37x |
+| peaceful | 44.7% | 35.9% | 1.25x |
 
-- Downloads 90-second clips for a curated set of songs per mood
-- Generates augmented, longer-context enhanced spectrograms (2×45s segments with pitch/time variants)
-- Resizes enhanced spectrograms to 224×224 for efficient CNN training
-- Trains a 3-class CNN (energetic, peaceful, emotional) and evaluates performance
+Silhouette score across the three: **0.073**, where 1 is well separated.
 
-Folder snapshot (key dirs):
+Mainstream Bollywood sits in a narrow band of tempo, instrumentation and
+production. A party track leaves that band; a romantic, sad or calm one does
+not. **Arousal is recoverable from this audio. Valence, at 131 songs, is not.**
 
-- `data/` — raw 90s audio clips organized by mood (not committed)
-- `mel_spectrograms_enhanced/` — augmented 45s segment spectrograms (original + pitch/time variants)
-- `mel_spectrograms_resized/` — 224×224 versions used for training
-- `models/` — saved Keras models and training artifacts
-- `scripts/` — CLI scripts for data prep, training, and evaluation
+Five architectures across two representations reached about two thirds and
+failed identically. The ceiling was never the model.
 
-## 🧠 Deep Learning Tech Stack
+---
 
-- **Framework**: TensorFlow/Keras
-- **Architecture**: Custom CNNs (Residual & Advanced)
-- **Input**: Mel-spectrograms (224×224 RGB images)
-- **Training**: Gradient-based optimization with advanced regularization
+## What the app does
 
-## 📁 Dataset
+Upload a track and it shows the working, not just a label.
 
-- **148 songs** across 5 original mood categories
-- **Merged into 3 classes** based on acoustic similarity
-- **1,124 training spectrograms** after audio processing
-- **Trained on 224x224 RGB mel-spectrograms**
+- **Energy**, averaged over every 0.96 second window. The one prediction the data supports.
+- **Energy through the track**, so a build or a drop is visible rather than averaged away.
+- **What the network hears**: the highest-scoring AudioSet classes from YAMNet's final layer, with the ones every piece of music scores on removed. A party track reads *Dance music, Disco, House, Techno*; a ballad reads *Singing, Lullaby, Music of Asia*.
+- **Closest songs in the corpus**, by cosine similarity in the embedding space. Not a genre lookup; this is what "sounds alike" means to the model.
+- **Where it lands** on the corpus map, projected with UMAP rather than t-SNE because t-SNE cannot place a point it was not fitted on.
+- **The project's own spectrogram encoding**: red percussive, green harmonic plus chroma, blue mel plus spectral contrast.
 
-## Prerequisites
+---
 
-- Python 3.9–3.11
-- macOS or Windows 10/11
-- System dependencies:
-  - ffmpeg (required by pydub)
-  - yt-dlp CLI (for downloading audio)
+## How it got here
 
-### macOS setup
+| step | result |
+|---|---|
+| Original CNN, as reported | 66% over three classes |
+| Same model, clean song-grouped holdout | 64%, with `peaceful` at **0 of 9** |
+| Retrained on fixed data and augmentation | 64%, all three classes working |
+| EfficientNet transfer | 60% on reload, overfitting gap closed |
+| YAMNet embeddings | 68%, `peaceful` still 1 of 9 |
+| Energy only | **26 of 26** |
 
-Install system tools:
+Three defects were found along the way, each by checking rather than assuming:
 
-```bash
-brew install ffmpeg yt-dlp
-```
+**Training and serving built different spectrograms.** The app produced a plain
+mel at a different hop length, stacked into three identical greyscale channels
+and zero-padded into a 224x224 frame, leaving 43% of the image black. Nothing
+raised; the probabilities simply sat near a third each.
 
-Apple Silicon (M1/M2) TensorFlow options:
+**The augmentation was photographic.** `rotation_range`, `shear_range`,
+`horizontal_flip` and a vertical shift commented as a time shift, applied to a
+spectrogram whose vertical axis is frequency and whose green channel is chroma.
 
-- Preferred: use `tensorflow-macos` and `tensorflow-metal` for GPU acceleration.
-- Alternative: `tensorflow` CPU-only works but will be slower.
+**Five songs carried contradictory labels.** The source CSV lists 11 songs under
+more than one category; 150 rows resolve to 137 URLs. Identical audio was filed
+under two moods, verified by hash.
 
-### Windows setup
+Full detail in [ARCHITECTURE.md](ARCHITECTURE.md).
 
-1. Install Python from https://www.python.org/downloads/ (enable "Add python.exe to PATH").
-2. Install ffmpeg:
+---
 
-- Download static build from https://www.gyan.dev/ffmpeg/builds/
-- Extract and add the `bin/` folder path to System Environment Variable `Path`.
-
-3. Install yt-dlp:
-
-```powershell
-pip install yt-dlp
-```
-
-(Or download a Windows binary from https://github.com/yt-dlp/yt-dlp/releases and place it in PATH.) 4. (Optional GPU) Install appropriate TensorFlow build for your GPU drivers (CUDA 12.x). Otherwise use CPU. 5. Verify tools:
-
-```powershell
-ffmpeg -version
-yt-dlp --version
-python --version
-```
-
-## Setup
-
-### macOS / Linux
+## Running it
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
+python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-```
-
-Apple Silicon (GPU acceleration):
-
-```bash
-pip uninstall -y tensorflow
-pip install tensorflow-macos tensorflow-metal
-```
-
-### Windows (PowerShell)
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-Deactivate environment:
-
-```bash
-deactivate
-```
-
-## Run the Streamlit app locally
-
-1. Ensure ffmpeg is installed and on PATH (see platform setup above).
-2. Install Python dependencies (in an activated venv):
-
-```bash
-pip install -r requirements.txt
-```
-
-3. Run the app:
-
-```bash
 streamlit run app.py
 ```
 
-If yt-dlp complains about ffmpeg/ffprobe, verify your PATH includes the ffmpeg binaries. On some environments, adding `/usr/bin` to PATH helps:
+The pins in `requirements.txt` are deliberate: TensorFlow 2.16 needs
+`numpy<2` and `protobuf<5`, Streamlit from 1.40 needs `protobuf>=5.26`, and
+umap-learn 0.6 needs `numpy>=2`. Loosening any one of them installs cleanly
+and fails at import.
 
-```python
-# Add near the top of app.py, after imports
-import os
-os.environ['PATH'] += os.pathsep + '/usr/bin'
-```
-
-## Typical workflow
-
-1. Fetch YouTube URLs (optional)
-
-- Script: `scripts/fetch_url.py`
-- Requires a YouTube Data API v3 key from Google Cloud.
-- Edit `API_KEY` in the script or export an env var and read it inside.
+To rebuild from audio:
 
 ```bash
-python scripts/fetch_url.py
+python scripts/generate_smart_segments.py     # spectrograms, if using the CNN path
+python scripts/yamnet_embeddings.py           # embeddings, cached
+python scripts/build_app_assets.py            # energy model, corpus, projector
+python scripts/evaluate_song_level.py         # honest per-song evaluation
+python scripts/experiment_taxonomy.py         # the grouping sweep
+pytest tests/                                 # 7 tests
 ```
 
-2. Download audio (90s per song)
+---
 
-- Script: `scripts/download_songs.py`
-- Requires `yt-dlp` and `ffmpeg` to be installed and on PATH.
-- Outputs 90s MP3s into `data/<mood>/`.
+## Known limits
 
-macOS / Linux:
-
-```bash
-python scripts/download_songs.py
-```
-
-Windows PowerShell:
-
-```powershell
-python scripts/download_songs.py
-```
-
-3. Generate enhanced spectrograms (with augmentation)
-
-- Script: `scripts/generate_smart_segments.py`
-- Creates 2×45s segments per song and applies augmentations (pitch shift, time stretch)
-- Outputs to `mel_spectrograms_enhanced/`
-
-```bash
-python scripts/generate_smart_segments.py
-```
-
-4. Resize spectrograms for training
-
-- Script: `scripts/resizing.py`
-- Inputs from `mel_spectrograms_enhanced/` and outputs `mel_spectrograms_resized/` (224×224).
-
-```bash
-python scripts/resizing.py
-```
-
-5. Train the model (3 classes)
-
-- Script: `scripts/train_segmented_model.py`
-- Uses `mel_spectrograms_resized/` (falls back to `mel_spectrograms_enhanced/` if not resized yet)
-- Saves best and final models in `models/`.
-
-```bash
-python scripts/train_segmented_model.py
-```
-
-6. Evaluate the model
-
-- Script: `scripts/evaluate_model.py`
-- Generates a confusion matrix and detailed metrics in `models/`.
-
-```bash
-python scripts/evaluate_model.py
-```
-
-## Data layout expectations
-
-- Enhanced (augmented) spectrograms:
-
-  - `mel_spectrograms_enhanced/energetic/*_seg{1,2}_{original|pitch_up|pitch_down|time_stretch}.png`
-  - `mel_spectrograms_enhanced/peaceful/...`
-  - `mel_spectrograms_enhanced/emotional/...`
-
-- Resized training set:
-  - `mel_spectrograms_resized/energetic/*.png`
-  - `mel_spectrograms_resized/peaceful/*.png`
-  - `mel_spectrograms_resized/emotional/*.png`
-
-## Tips and troubleshooting
-
-- ffmpeg not found:
-  - macOS: `brew install ffmpeg`
-  - Windows: ensure `ffmpeg\bin` path is in System PATH (restart terminal)
-- yt-dlp not found: `pip install yt-dlp` (or brew on macOS)
-- TensorFlow GPU (Apple Silicon): install `tensorflow-macos tensorflow-metal`
-- TensorFlow GPU (Windows NVIDIA): install CUDA toolkit + cuDNN (match TensorFlow version) or stick with CPU if unsure
-- Too few spectrograms? Rerun `generate_smart_segments.py` after adding more audio.
-- Memory errors during training: lower batch size in `train_segmented_model.py` (e.g., 8 or 4)
-- OpenCV import errors: `pip install --upgrade opencv-python`
-- Google API quota errors: slow requests, or rotate API key
-- Mismatched Python env: ensure venv is activated before running scripts
+- 131 songs after removing contradictory labels. Every figure here carries a
+  wide interval, and they are reported with the numbers rather than hidden.
+- The corpus is mainstream Hindi film music. Nothing here is claimed to
+  generalise beyond it.
+- YouTube ingestion is best-effort: downloads from datacenter IPs are
+  frequently refused, so upload is the reliable path on any hosted deployment.
+- Valence remains unsolved, and solving it needs more data and probably labels
+  that are not one category per song.

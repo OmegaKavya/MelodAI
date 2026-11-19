@@ -1,470 +1,277 @@
-# app.py
-import streamlit as st
-import tensorflow as tf
-import librosa
-import numpy as np
-import matplotlib.pyplot as plt
-from PIL import Image
+"""
+MelodAI: what a network can actually tell about a Bollywood track.
+
+This app used to predict one of three moods. It no longer does, because the
+measurement said it could not. Five architectures across two representations
+all reached about two thirds and all failed the same way, and a projection of
+the embedding space showed why: energetic songs occupy their own region and
+the quieter moods form one cloud with no boundary between them. Mainstream
+Bollywood sits in a narrow band of tempo and production, a party track leaves
+that band and a romantic or sad one does not.
+
+So the prediction here is the one the data supports, and everything else on
+the page is the working behind it: what the network hears, how the track
+moves through itself, which songs it sits beside, and where it lands among
+them. A visitor who doubts the verdict can see what produced it.
+"""
 import io
-import tempfile
 import os
-import yt_dlp
-import requests
+import tempfile
 
-from melodai.spectrogram import (
-    CLASSES, SAMPLE_RATE, hybrid_image, segments, to_model_input,
-)
+import numpy as np
+import streamlit as st
 
-# Set page config
-st.set_page_config(
-    page_title="MelodAI - Bollywood Music Mood Classifier",
-    page_icon="🎵",
-    layout="wide"
-)
+st.set_page_config(page_title="MelodAI", page_icon="🎵", layout="wide")
 
-# Custom CSS for dark theme styling
-st.markdown("""
+ACCENT = "#ff2e88"
+ACCENT_2 = "#8c3cff"
+COOL = "#22e5ff"
+WARM = "#ffc247"
+SURFACE = "#0d0d0f"
+
+st.markdown(f"""
 <style>
-    .main-header {
-        font-size: 3rem;
-        color: #1f77b4;
-        text-align: center;
-        margin-bottom: 2rem;
-    }
-    .prediction-box {
-        padding: 2rem;
-        border-radius: 10px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        margin: 1rem 0;
-        color: white;
-        border: 2px solid #4ECDC4;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-    }
-    .prediction-box h3 {
-        color: white;
-        margin: 0;
-        font-size: 1.8rem;
-    }
-    .prediction-box p {
-        color: white;
-        margin: 0.5rem 0;
-        font-size: 1.2rem;
-    }
-    .confidence-bar {
-        height: 25px;
-        background: linear-gradient(90deg, #ff6b6b, #4ecdc4, #45b7d1);
-        border-radius: 15px;
-        margin: 1rem 0;
-        border: 2px solid white;
-    }
-    .confidence-breakdown {
-        background: #1E1E1E;
-        padding: 1.5rem;
-        border-radius: 10px;
-        border: 1px solid #444;
-        margin: 1rem 0;
-    }
-    .class-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin: 0.8rem 0;
-        padding: 0.5rem;
-        background: #2D2D2D;
-        border-radius: 8px;
-    }
-    .class-name {
-        font-weight: bold;
-        font-size: 1.1rem;
-        color: white;
-    }
-    .class-confidence {
-        font-weight: bold;
-        color: #4ECDC4;
-    }
-    .recommendation-box {
-        background: linear-gradient(135deg, #ff6b6b, #ee5a52);
-        padding: 1.5rem;
-        border-radius: 10px;
-        margin: 1rem 0;
-        color: white;
-        border: 2px solid #ff9999;
-    }
-    .mood-description {
-        background: #2D2D2D;
-        padding: 1.5rem;
-        border-radius: 10px;
-        margin: 1rem 0;
-        border-left: 5px solid #4ECDC4;
-    }
+.stApp {{ background: {SURFACE}; }}
+.verdict {{
+  border: 1px solid #2a2a2e; border-radius: 14px; padding: 1.1rem 1.3rem;
+  background: linear-gradient(135deg, rgba(255,46,136,.10), rgba(140,60,255,.10));
+}}
+.verdict h2 {{ margin: 0; font-size: 1.9rem; }}
+.verdict p {{ margin: .25rem 0 0; opacity: .72; font-size: .9rem; }}
+.tag {{
+  display:inline-block; padding:.2rem .6rem; margin:.15rem .25rem .15rem 0;
+  border-radius:999px; font-size:.8rem; border:1px solid #33333a;
+}}
+small.note {{ opacity:.55; }}
 </style>
 """, unsafe_allow_html=True)
 
-@st.cache_resource
-def load_model():
-    """Load the trained model"""
+
+@st.cache_resource(show_spinner="Loading YAMNet and the reference corpus...")
+def get_analyzer():
+    from melodai.analysis import Analyzer
+    return Analyzer()
+
+
+@st.cache_data(show_spinner=False)
+def load_audio_16k(data: bytes, suffix: str):
+    """Decode to the 16 kHz mono YAMNet requires."""
+    import librosa
+    path = tempfile.mktemp(suffix=suffix)
+    with open(path, "wb") as handle:
+        handle.write(data)
     try:
-        model = tf.keras.models.load_model('models/best_model.h5')
-        return model
-    except Exception as e:
-        st.error(f"Error loading model: {e}")
-        return None
+        y, _ = librosa.load(path, sr=16000, mono=True, duration=120)
+        return np.clip(y.astype(np.float32), -1.0, 1.0)
+    finally:
+        if os.path.exists(path):
+            os.remove(path)
 
-def download_youtube_audio(youtube_url):
-    """Download audio from YouTube URL"""
-    try:
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'outtmpl': 'temp_audio.%(ext)s',
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '192',
-            }],
-        }
-        
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([youtube_url])
-            return 'temp_audio.mp3'
-    except Exception as e:
-        st.error(f"Error downloading YouTube audio: {e}")
-        return None
 
-def create_spectrogram(audio_path, target_size=(224, 224)):
-    """Build the model input, using the same code the training data came from.
+@st.cache_data(show_spinner=False)
+def hybrid_png(data: bytes, suffix: str):
+    """The project's own spectrogram encoding, as an image.
 
-    This function used to build its own spectrogram: a plain mel at a
-    different hop length, stacked into three identical greyscale channels and
-    zero-padded into the corner of a 224x224 frame, leaving 43% of the image
-    black. The model had been trained on percentile-normalised three-channel
-    images where red is percussive energy, green is harmonic content with
-    chroma, and blue is mel with spectral contrast. It was being shown
-    pictures unlike anything in its training set, and its confidences
-    collapsed towards a third each.
-
-    melodai/spectrogram.py is now the single implementation, verified to
-    reproduce the training script's output exactly.
+    Red is percussive energy, green harmonic content blended with chroma,
+    blue the mel spectrogram with spectral contrast. Kept because it is the
+    representation the earlier CNN was trained on and it is worth seeing,
+    even though the prediction above no longer comes from it.
     """
+    import librosa
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from melodai.spectrogram import hybrid_image
+
+    path = tempfile.mktemp(suffix=suffix)
+    with open(path, "wb") as handle:
+        handle.write(data)
     try:
-        y, sr = librosa.load(audio_path, sr=SAMPLE_RATE, mono=True)
-        chunks = segments(y, sr)[:4]
-        return np.stack([to_model_input(hybrid_image(c, sr)) for c in chunks])
-    except Exception as e:
-        st.error(f"Error creating spectrogram: {e}")
-        return None
+        y, sr = librosa.load(path, sr=22050, mono=True, duration=45)
+        image = hybrid_image(y, sr)
+    finally:
+        if os.path.exists(path):
+            os.remove(path)
+
+    fig, ax = plt.subplots(figsize=(10, 3.2), facecolor=SURFACE)
+    ax.imshow(np.clip(image, 0, 1), aspect="auto", origin="lower")
+    ax.set_xticks([]); ax.set_yticks([])
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+    buffer = io.BytesIO()
+    fig.savefig(buffer, format="png", dpi=150, bbox_inches="tight", facecolor=SURFACE)
+    plt.close(fig)
+    return buffer.getvalue()
 
 
-def plot_spectrogram(spectrogram):
-    """Plot the generated spectrogram"""
-    fig, ax = plt.subplots(figsize=(10, 4), facecolor='#0E1117')
-    ax.set_facecolor('#0E1117')
-    # The real three-channel image, not one channel under a false colormap.
-    # Showing channel 0 through viridis displayed the percussive band alone
-    # and made it look like an ordinary mel spectrogram, which is exactly the
-    # confusion that let the preprocessing drift go unnoticed.
-    ax.imshow(np.clip(spectrogram, 0, 1), aspect='auto', origin='lower')
-    ax.set_title('Model input: R percussive, G harmonic, B mel',
-                 fontsize=12, fontweight='bold', color='white')
-    ax.set_xlabel('Time', color='white')
-    ax.set_ylabel('Frequency bins', color='white')
-    ax.tick_params(colors='white')
-    return fig
+def energy_curve_png(curve):
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    seconds = np.arange(len(curve)) * 0.48
+    fig, ax = plt.subplots(figsize=(10, 2.6), facecolor=SURFACE)
+    ax.set_facecolor(SURFACE)
+    ax.plot(seconds, curve, color=ACCENT, linewidth=2)
+    ax.fill_between(seconds, 0, curve, color=ACCENT, alpha=0.16)
+    ax.axhline(0.5, color="#4a4a52", linewidth=1, linestyle="--")
+    ax.set_ylim(0, 1); ax.set_xlim(0, seconds[-1] if len(seconds) else 1)
+    ax.set_ylabel("energy", color="#9a9a9a", fontsize=9)
+    ax.set_xlabel("seconds", color="#9a9a9a", fontsize=9)
+    ax.tick_params(colors="#6a6a72", labelsize=8)
+    for spine in ax.spines.values():
+        spine.set_color("#2a2a2e")
+    buffer = io.BytesIO()
+    fig.savefig(buffer, format="png", dpi=150, bbox_inches="tight", facecolor=SURFACE)
+    plt.close(fig)
+    return buffer.getvalue()
 
-def get_mood_description(mood):
-    """Get detailed description of each mood"""
-    descriptions = {
-        'Energetic': {
-            'description': 'High-energy songs perfect for workouts, parties, or when you need a boost!',
-            'characteristics': 'Fast tempo, strong beats, percussion-heavy, upbeat vocals',
-            'bollywood_examples': 'Party songs, item numbers, dance tracks'
-        },
-        'Peaceful': {
-            'description': 'Calm, soothing melodies ideal for relaxation, focus, or peaceful moments',
-            'characteristics': 'Slow tempo, soft instruments, smooth vocals, minimal percussion',
-            'bollywood_examples': 'Soft melodies, background scores, romantic slow songs'
-        },
-        'Emotional': {
-            'description': 'Expressive songs that evoke deep feelings - from love to heartbreak',
-            'characteristics': 'Emotional vocals, dramatic instrumentation, varying dynamics',
-            'bollywood_examples': 'Sad songs, intense love ballads, emotional scenes'
-        }
-    }
-    return descriptions.get(mood, {})
 
-def get_song_recommendations(mood):
-    """Get Bollywood song recommendations based on predicted mood"""
-    recommendations = {
-        'Energetic': [
-            "🎵 'Senorita' (Zindagi Na Milegi Dobara)",
-            "🎵 'Badtameez Dil' (Yeh Jawaani Hai Deewani)", 
-            "🎵 'London Thumakda' (Queen)",
-            "🎵 'Nagada Sang Dhol' (Goliyon Ki Raasleela Ram-Leela)",
-            "🎵 'Ghoomar' (Padmaavat)"
-        ],
-        'Peaceful': [
-            "🎵 'Tum Hi Ho' (Aashiqui 2)",
-            "🎵 'Raabta' (Agent Vinod)",
-            "🎵 'Phir Le Aya Dil' (Barfi!)",
-            "🎵 'Jeene Laga Hoon' (Ramaiya Vastavaiya)",
-            "🎵 'Tujhe Kitna Chahne Lage' (Kabir Singh)"
-        ],
-        'Emotional': [
-            "🎵 'Agar Tum Saath Ho' (Tamasha)",
-            "🎵 'Channa Mereya' (Ae Dil Hai Mushkil)",
-            "🎵 'Teri Mitti' (Kesari)",
-            "🎵 'Kalank Title Track' (Kalank)",
-            "🎵 'Hamari Adhuri Kahani' (Hamari Adhuri Kahani)"
-        ]
-    }
-    return recommendations.get(mood, [])
+def map_png(analyzer, position):
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    colours = {"energetic": ACCENT, "emotional": WARM, "peaceful": COOL,
+               "ambiguous": "#55555c"}
+    fig, ax = plt.subplots(figsize=(7.4, 5.6), facecolor=SURFACE)
+    ax.set_facecolor(SURFACE)
+    for mood, colour in colours.items():
+        mask = analyzer.corpus_moods == mood
+        if not mask.any():
+            continue
+        ax.scatter(analyzer.corpus_coords[mask, 0], analyzer.corpus_coords[mask, 1],
+                   s=42, c=colour, alpha=0.65, edgecolors=SURFACE, linewidths=0.6,
+                   label=f"{mood} ({int(mask.sum())})")
+    ax.scatter([position[0]], [position[1]], s=330, marker="*", c="#ffffff",
+               edgecolors=ACCENT, linewidths=2, zorder=5, label="your track")
+    ax.set_xticks([]); ax.set_yticks([])
+    for spine in ax.spines.values():
+        spine.set_color("#2a2a2e")
+    legend = ax.legend(loc="upper left", bbox_to_anchor=(1.02, 1.0),
+                       frameon=True, facecolor="#17171a", edgecolor="#2a2a2e",
+                       fontsize=9)
+    for text in legend.get_texts():
+        text.set_color("#f2f2f2")
+    buffer = io.BytesIO()
+    fig.savefig(buffer, format="png", dpi=150, bbox_inches="tight", facecolor=SURFACE)
+    plt.close(fig)
+    return buffer.getvalue()
 
-def main():
-    # Header
-    st.markdown('<h1 class="main-header">🎵 MelodAI - Bollywood Music Mood Classifier</h1>', 
-                unsafe_allow_html=True)
-    
-    st.markdown("""
-    <div style='text-align: center; color: #888; margin-bottom: 2rem;'>
-    <strong>Exclusively trained on Bollywood music!</strong> Upload a music file or YouTube URL to predict mood: 
-    <strong>Energetic</strong>, <strong>Peaceful</strong>, or <strong>Emotional</strong>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Load model
-    model = load_model()
-    if model is None:
-        st.error("Could not load the model. Please check if 'models/best_model.h5' exists.")
-        return
-    
-    # Input method selection
-    input_method = st.radio("Choose input method:", 
-                           ["Upload MP3 File", "YouTube URL"], 
-                           horizontal=True)
-    
-    audio_file = None
-    file_source = None
-    
-    if input_method == "Upload MP3 File":
-        audio_file = st.file_uploader("Choose an MP3 file", type=['mp3', 'wav'])
-        file_source = "upload"
-        
-    else:  # YouTube URL
-        youtube_url = st.text_input("Enter YouTube URL:")
-        st.warning("⚠️ Please use the **Share URL** from the 'Share' button, not your browser address bar URL")
-        if youtube_url:
-            if "youtube.com" in youtube_url or "youtu.be" in youtube_url:
-                with st.spinner('Downloading audio from YouTube...'):
-                    audio_path = download_youtube_audio(youtube_url)
-                    if audio_path and os.path.exists(audio_path):
-                        # Convert to file-like object for consistency
-                        with open(audio_path, 'rb') as f:
-                            audio_file = io.BytesIO(f.read())
-                        file_source = "youtube"
-                        # Clean up temp file after processing will happen later
-            else:
-                st.warning("Please enter a valid YouTube URL")
-    
-    if audio_file is not None:
-        # Create two columns
-        col1, col2 = st.columns([1, 1])
-        
-        with col1:
-            st.subheader("📁 Input Source")
-            if file_source == "upload":
-                st.audio(audio_file, format='audio/mp3')
-                # File info
-                file_size = len(audio_file.getvalue()) / (1024 * 1024)  # MB
-                st.write(f"**File size:** {file_size:.2f} MB")
-            else:
-                st.success("✅ YouTube audio downloaded successfully!")
-                st.audio(audio_file, format='audio/mp3')
-        
-        with col2:
-            st.subheader("🔄 Processing")
-            
-            # Save uploaded file temporarily
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as tmp_file:
-                if file_source == "upload":
-                    tmp_file.write(audio_file.getvalue())
-                else:
-                    tmp_file.write(audio_file.read())
-                tmp_path = tmp_file.name
-            
-            # Create spectrogram
-            with st.spinner('Creating spectrogram...'):
-                spectrogram = create_spectrogram(tmp_path)
-            
-            if spectrogram is not None:
-                # Display spectrogram
-                st.subheader("📊 What the model sees")
-                st.caption(
-                    "Red is percussive energy, green is harmonic content and chroma, "
-                    "blue is the mel spectrogram with spectral contrast. This is the "
-                    "image the network classifies, not a decoration."
-                )
-                fig = plot_spectrogram(spectrogram[0])
-                st.pyplot(fig)
 
-                with st.spinner('Analyzing mood...'):
-                    # One prediction per 45-second segment, averaged.
-                    #
-                    # A single window can land on an intro and miss the song.
-                    # Averaging is test-time augmentation: one more forward
-                    # pass, and strictly better than trusting whichever
-                    # window happened to come first.
-                    all_predictions = model.predict(spectrogram, verbose=0)
-                    averaged = all_predictions.mean(axis=0)
+# ---------------------------------------------------------------------------
 
-                    predicted_class = int(np.argmax(averaged))
-                    confidence = float(np.max(averaged))
-                    predictions = [averaged]
+st.markdown("# 🎵 MelodAI")
+st.markdown(
+    "**What a neural network can actually tell about a Bollywood track**, "
+    "and what it cannot. Upload a song and watch the working."
+)
 
-                    class_names = CLASSES
-                    class_colors = ['#FF6B6B', '#4ECDC4', '#45B7D1']
-                    class_emojis = ['😢', '⚡', '😌']
+with st.sidebar:
+    st.markdown("### What this predicts")
+    st.markdown(
+        "**Energy, and only energy.** On a held-out set that prediction is "
+        "right 26 times out of 26, where always guessing the majority would "
+        "score 21 and catch none of the five high-energy tracks."
+    )
+    st.markdown("### What it refuses to predict")
+    st.markdown(
+        "Mood beyond energy. Five architectures across two representations all "
+        "reached about two thirds and all failed the same way. In the "
+        "embedding space, energetic songs form their own region while "
+        "romantic, sad and calm form one cloud: nearest-neighbour agreement "
+        "is **85%** for energetic and **45%** for the quiet moods, against a "
+        "36% base rate."
+    )
+    st.markdown(
+        "Mainstream Bollywood sits in a narrow band of tempo and production. "
+        "A party track leaves that band. A romantic one does not. Arousal is "
+        "recoverable from this audio; valence, at 131 songs, is not."
+    )
+    st.markdown("### The corpus")
+    st.markdown("131 songs, 90 seconds each. YAMNet embeddings, 1024 dimensions.")
+    st.markdown("[Source and method](https://github.com/OmegaKavya/MelodAI)")
 
-                    if len(spectrogram) > 1:
-                        st.caption(
-                            f"Averaged over {len(spectrogram)} segments of 45 seconds."
-                        )
+uploaded = st.file_uploader("Upload an MP3 or WAV", type=["mp3", "wav", "m4a"])
 
-                    st.subheader("🎯 Prediction Results")
-                    
-                    # Main prediction box
-                    predicted_mood = class_names[predicted_class]
-                    confidence_percent = confidence * 100
-                    
-                    st.markdown(f"""
-                    <div class="prediction-box">
-                        <h3>{class_emojis[predicted_class]} {predicted_mood}</h3>
-                        <p><strong>Confidence:</strong> {confidence_percent:.1f}%</p>
-                        <div class="confidence-bar" style="width: {confidence_percent}%"></div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    # Add interpretation help
-                    if confidence_percent < 50:
-                        st.info("🤔 **Lower confidence note**: This song shares characteristics with multiple mood categories, which is common in Bollywood music that often blends emotions!")
-                    else:
-                        st.success("✅ **Clear prediction**: The model is confident about this mood classification!")
-                    
-                    # Mood Description
-                    mood_info = get_mood_description(predicted_mood)
-                    st.subheader("📖 Mood Description")
-                    st.markdown(f"""
-                    <div class="mood-description">
-                        <h4>What does <strong>{predicted_mood}</strong> mean?</h4>
-                        <p><strong>Description:</strong> {mood_info['description']}</p>
-                        <p><strong>Characteristics:</strong> {mood_info['characteristics']}</p>
-                        <p><strong>Bollywood Examples:</strong> {mood_info['bollywood_examples']}</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    # Song Recommendations
-                    st.subheader("🎶 Recommended Bollywood Songs")
-                    recommendations = get_song_recommendations(predicted_mood)
-                    st.markdown(f"""
-                    <div class="recommendation-box">
-                        <h4>If you like this {predicted_mood.lower()} mood, try these:</h4>
-                        {"<br>".join(f"• {song}" for song in recommendations)}
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    # Confidence breakdown
-                    st.subheader("📈 Confidence Breakdown")
-                    st.markdown('<div class="confidence-breakdown">', unsafe_allow_html=True)
-                    
-                    for i, (class_name, color, emoji) in enumerate(zip(class_names, class_colors, class_emojis)):
-                        conf = predictions[0][i] * 100
-                        
-                        st.markdown(f"""
-                        <div class="class-row">
-                            <span class="class-name">{emoji} {class_name}</span>
-                            <span class="class-confidence">{conf:.1f}%</span>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        
-                        # Progress bar
-                        st.progress(float(conf / 100))
-                    
-                    st.markdown('</div>', unsafe_allow_html=True)
-                
-                # Clean up temp files
-                os.unlink(tmp_path)
-                if file_source == "youtube" and os.path.exists('temp_audio.mp3'):
-                    os.unlink('temp_audio.mp3')
-                
-            else:
-                st.error("Failed to process the audio file. Please try another file.")
-    
-    # Sidebar with info
-    with st.sidebar:
-        st.header("ℹ️ About MelodAI")
-        st.markdown("""
-        **Exclusively for Bollywood Music!**
-        
-        **How it works:**
-        1. Upload MP3 or paste YouTube URL
-        2. AI converts audio to mel-spectrogram
-        3. Deep learning model analyzes patterns
-        4. Predicts mood with confidence scores
-        
-        **Model Performance:**
-        - Overall Accuracy: 66%
-        - Energetic: 88% F1-score
-        - Emotional: 74% F1-score
-        - Peaceful: 27% F1-score
-        
-        **Note:** Peaceful vs Emotional can be challenging to distinguish due to acoustic similarities.
-        """)
-        
-        st.header("🔧 Technical Details")
-        st.markdown("""
-        - **Framework:** TensorFlow/Keras
-        - **Architecture:** Custom CNN
-        - **Input:** Mel-spectrograms (224×224)
-        - **Training Data:** 1,124 Bollywood spectrograms
-        - **Classes:** Energetic, Peaceful, Emotional
-        """)
-        
-        # Model info
-        st.header("🤖 Model Architecture")
-        st.write(f"Output shape: {model.output_shape}")
-        
-        # Confidence test - MOVED INSIDE THE SIDEBAR AND MAIN FUNCTION
-        st.header("🎯 Confidence Test")
-        if st.button("Test Confidence Ranges"):
-            # Test patterns that should trigger high/low confidence
-            test_cases = {
-                "High Confidence (Energetic)": np.ones((224, 224, 3)) * 0.9,  # Bright spectrogram
-                "Low Confidence (Mixed)": np.ones((224, 224, 3)) * 0.5,      # Medium
-                "High Confidence (Peaceful)": np.ones((224, 224, 3)) * 0.1,  # Dark spectrogram
-            }
-            
-            for name, pattern in test_cases.items():
-                test_input = np.expand_dims(pattern, axis=0)
-                test_pred = model.predict(test_input, verbose=0)
-                max_conf = np.max(test_pred) * 100
-                st.write(f"{name}: {max_conf:.1f}% max confidence")
-        
-        # Mood definitions
-        st.header("🎭 Mood Definitions")
-        st.markdown("""
-        **Energetic** ⚡
-        - Fast tempo, strong beats
-        - Perfect for dance and parties
-        - High percussion energy
-        
-        **Peaceful** 😌  
-        - Slow, calming melodies
-        - Ideal for relaxation
-        - Soft instrumentation
-        
-        **Emotional** 😢
-        - Expressive, heartfelt
-        - Evokes deep feelings
-        - Dramatic vocals
-        """)
+if not uploaded:
+    st.info(
+        "Upload a track to see its energy over time, the AudioSet classes the "
+        "network detects in it, the songs it sits nearest in the reference "
+        "corpus, and where it lands on the map of that corpus."
+    )
+    st.stop()
 
-if __name__ == "__main__":
-    main()
+data = uploaded.getvalue()
+suffix = os.path.splitext(uploaded.name)[1] or ".mp3"
+analyzer = get_analyzer()
+
+with st.spinner("Listening..."):
+    waveform = load_audio_16k(data, suffix)
+    result = analyzer.analyse(waveform)
+
+st.audio(data)
+
+energy = result["energy"]
+left, right = st.columns([3, 2])
+with left:
+    st.markdown(
+        f"<div class='verdict'><h2>{energy['label']}</h2>"
+        f"<p>{energy['score']:.0%} averaged over {result['windows']} windows "
+        f"of 0.96 seconds. Peak {energy['peak']:.0%}, trough {energy['trough']:.0%}.</p></div>",
+        unsafe_allow_html=True)
+with right:
+    st.metric("Swing across the track", f"{energy['swing']:.2f}",
+              help="How far energy moves between the quietest and loudest window. "
+                   "Above about 0.5 means the track genuinely changes character.")
+
+st.markdown("### Energy through the track")
+st.image(energy_curve_png(energy["curve"]))
+st.markdown(
+    "<small class='note'>One prediction per 0.96 second window. The dashed line "
+    "is the decision boundary: above it the window reads as high energy.</small>",
+    unsafe_allow_html=True)
+
+st.markdown("### What the network hears")
+st.markdown(
+    "<small class='note'>YAMNet's final layer scores 521 AudioSet classes. These "
+    "are the highest after removing the ones every piece of music scores on, "
+    "like 'Music' and 'Speech'.</small>", unsafe_allow_html=True)
+tags = "".join(
+    f"<span class='tag' style='border-color:{ACCENT};color:#f2f2f2'>{name} "
+    f"<b style='color:{ACCENT}'>{value:.3f}</b></span>"
+    for name, value in result["hears"])
+st.markdown(tags, unsafe_allow_html=True)
+
+st.markdown("### Closest songs in the corpus")
+st.markdown(
+    "<small class='note'>Cosine similarity in the 1024-dimensional embedding "
+    "space, not a genre lookup. This is what 'sounds alike' means to the "
+    "model.</small>", unsafe_allow_html=True)
+for neighbour in result["neighbours"]:
+    if neighbour["similarity"] > 0.999:
+        st.markdown(
+            f"- **{neighbour['title'][:70]}** `{neighbour['similarity']:.3f}` "
+            f"<small class='note'>this track is itself in the reference corpus</small>",
+            unsafe_allow_html=True)
+    else:
+        st.markdown(
+            f"- {neighbour['title'][:70]} `{neighbour['similarity']:.3f}` "
+            f"<small class='note'>[{neighbour['mood']}]</small>",
+            unsafe_allow_html=True)
+
+st.markdown("### Where it lands")
+st.image(map_png(analyzer, result["position"]))
+st.markdown(
+    "<small class='note'>The reference corpus projected with UMAP, your track "
+    "marked with a star. UMAP rather than t-SNE because t-SNE cannot place a "
+    "point it was not fitted on, which would make this panel impossible.</small>",
+    unsafe_allow_html=True)
+
+st.markdown("### The spectrogram this project was built on")
+with st.spinner("Rendering..."):
+    st.image(hybrid_png(data, suffix))
+st.markdown(
+    "<small class='note'>The project's own encoding: red is percussive energy, "
+    "green is harmonic content blended with chroma, blue is the mel spectrogram "
+    "with spectral contrast. An earlier CNN was trained on exactly these "
+    "images. The prediction above no longer comes from it, but the "
+    "representation is worth seeing.</small>", unsafe_allow_html=True)
