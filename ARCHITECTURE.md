@@ -120,11 +120,18 @@ All three models, scored per song on the identical 25-song clean holdout:
 |---|---|---|---|---|---|---|
 | original | 64.0% | 45-80% | 100% | 100% | **0%** | - |
 | from scratch, fixed data | 64.0% | 45-80% | 45% | 100% | 67% | 98% / 64% |
-| transfer + fine-tune | **68.0%** | 48-83% | 55% | 100% | 67% | **54% / 62%** |
+| transfer + fine-tune | 60.0% | 41-77% | 45% | 100% | 56% | **54% / 62%** |
 
-The honest reading: on 25 songs those three intervals overlap almost
-entirely, so **the four point gain is not a result anyone should quote.**
-What is a result is the last column. The transfer model's training accuracy
+The transfer row reports **60%, measured on reload**. The training run
+printed 68% for the same model on the same holdout, and the saved file does
+not reproduce it: two songs differ. Either the `.h5` format is not round
+tripping the nested EfficientNet faithfully, which is a known weakness in
+TF 2.16 where `.keras` is the supported format, or 68% was noise on 25
+songs. Until that is resolved the lower, reproducible number is the one
+recorded here.
+
+Either way the headline gain was never real. What is a result is the last
+column. The transfer model's training accuracy
 sits *below* its validation accuracy, because augmentation applies only to
 training; it has stopped memorising. The from-scratch model's 34 point gap
 was the ceiling, and it is gone.

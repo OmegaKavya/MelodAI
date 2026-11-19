@@ -16,6 +16,11 @@ build/
 dist/
 pip-wheel-metadata/
 .venv/
+# Any venv, not only one named exactly ".venv". The YAMNet work needs
+# tensorflow_hub, which pulls plain tensorflow and conflicts with the
+# tensorflow-macos plus metal pair the main environment uses, so it lives in
+# .venv-yamnet inside the repo.
+.venv*/
 venv/
 env/
 ENV/
@@ -67,3 +72,4 @@ logs/
 # Temporary files
 /tmp/
 /temp/
+/models/yamnet_embeddings.npz
