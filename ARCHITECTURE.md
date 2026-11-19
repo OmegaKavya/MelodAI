@@ -83,6 +83,47 @@ Training produced the three-channel image described above. The deployed app inde
 
 Nothing raised. The app returned a confident-looking percentage while the probability vector sat near a third each, which is what guessing looks like. `tests/test_spectrogram.py` now asserts bit-identical equality (`np.array_equal`) between this module and the training script's own function, and fails if either drifts.
 
+### Measured, on a clean song-grouped holdout
+
+Reproducing the original evaluation gives **66.1% per image**, matching the
+reported figure exactly, and **62.1% per song**. Rebuilding the split so that
+songs are grouped and contradictory labels removed, and scoring both models
+on that identical 25-song holdout:
+
+| | overall | emotional | energetic | peaceful |
+|---|---|---|---|---|
+| original model | 64.0% | 100% | 100% | **0%** |
+| retrained (`train_v2.py`) | 64.0% | 45% | 100% | **67%** |
+
+The same headline number describes two very different systems. The original
+model never once predicts `peaceful` correctly on this holdout; it scores
+64% because the other two classes account for 16 of the 25 songs. It is a
+two-class classifier reported as a three-class one, and a single accuracy
+figure conceals that completely.
+
+The retrained model discriminates all three classes. It is not yet a better
+classifier by the headline metric; it is an honest one.
+
+### Two data defects behind that
+
+**Contradictory labels.** The source CSV lists 11 songs under more than one
+category, and 150 rows resolve to only 137 distinct YouTube URLs. Five songs
+therefore exist as byte-identical images under two class folders, verified by
+SHA-256. Every one of them involves `peaceful`. The model was shown the same
+image labelled two ways, and those duplicates also guarantee exact-duplicate
+leakage across any split.
+
+**Augmentation that does not correspond to audio.** The original training
+applied photographic transforms to spectrograms: `rotation_range=15`,
+`shear_range=0.1`, `horizontal_flip=True`, `brightness_range`, and a
+`height_shift_range` commented as a time shift when height is the frequency
+axis. Rotating a spectrogram makes a partial drift across frequency bands as
+time passes, which is not a sound; shifting it vertically transposes the key
+while keeping the label, and the green channel is chroma. `train_v2.py` uses
+SpecAugment-style time and frequency masking instead, where every surviving
+pixel still means what it meant. Pitch and tempo augmentation already happen
+correctly, in the audio domain, at spectrogram generation time.
+
 ### What the accuracy figure means
 Reported: **66% overall**, with per-class F1 of Energetic 88%, Emotional 74%, Peaceful 27%.
 
