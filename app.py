@@ -11,6 +11,10 @@ import os
 import yt_dlp
 import requests
 
+from melodai.spectrogram import (
+    CLASSES, SAMPLE_RATE, hybrid_image, segments, to_model_input,
+)
+
 # Set page config
 st.set_page_config(
     page_title="MelodAI - Bollywood Music Mood Classifier",
@@ -127,59 +131,43 @@ def download_youtube_audio(youtube_url):
         return None
 
 def create_spectrogram(audio_path, target_size=(224, 224)):
-    """Simple version matching ImageDataGenerator rescale=1./255"""
+    """Build the model input, using the same code the training data came from.
+
+    This function used to build its own spectrogram: a plain mel at a
+    different hop length, stacked into three identical greyscale channels and
+    zero-padded into the corner of a 224x224 frame, leaving 43% of the image
+    black. The model had been trained on percentile-normalised three-channel
+    images where red is percussive energy, green is harmonic content with
+    chroma, and blue is mel with spectral contrast. It was being shown
+    pictures unlike anything in its training set, and its confidences
+    collapsed towards a third each.
+
+    melodai/spectrogram.py is now the single implementation, verified to
+    reproduce the training script's output exactly.
+    """
     try:
-        # Load audio
-        y, sr = librosa.load(audio_path, sr=22050, duration=30, mono=True)
-        
-        if len(y) > 30 * sr:
-            y = y[:30 * sr]
-        
-        # Create mel spectrogram
-        mel = librosa.feature.melspectrogram(
-            y=y, sr=sr, n_mels=128, hop_length=512, n_fft=2048, fmin=20, fmax=8000
-        )
-        mel_db = librosa.power_to_db(mel, ref=np.max)
-        
-        # Ensure correct shape
-        if mel_db.shape[1] < 224:
-            pad_width = 224 - mel_db.shape[1]
-            mel_db = np.pad(mel_db, ((0, 0), (0, pad_width)), mode='constant', constant_values=-80)
-        elif mel_db.shape[1] > 224:
-            mel_db = mel_db[:, :224]
-        
-        # Create 3-channel image
-        img_3channel = np.stack([mel_db] * 3, axis=-1)
-        
-        # 🎯 SIMPLE & CORRECT: Convert to 0-255 then divide by 255
-        # First scale from dB range [-80,0] to [0,1]
-        img_0_1 = (img_3channel - (-80)) / 80.0
-        
-        # Convert to 0-255 (like actual images)
-        img_0_255 = (img_0_1 * 255).astype(np.uint8)
-        
-        # FINAL: Apply rescale=1./255 (EXACTLY like your training)
-        img_final = img_0_255.astype(np.float32) / 255.0
-        
-        st.write(f"🎯 Using EXACT training preprocessing")
-        st.write(f"📊 Final input range: [{img_final.min():.3f}, {img_final.max():.3f}]")
-        
-        return img_final
-        
+        y, sr = librosa.load(audio_path, sr=SAMPLE_RATE, mono=True)
+        chunks = segments(y, sr)[:4]
+        return np.stack([to_model_input(hybrid_image(c, sr)) for c in chunks])
     except Exception as e:
         st.error(f"Error creating spectrogram: {e}")
         return None
+
 
 def plot_spectrogram(spectrogram):
     """Plot the generated spectrogram"""
     fig, ax = plt.subplots(figsize=(10, 4), facecolor='#0E1117')
     ax.set_facecolor('#0E1117')
-    im = ax.imshow(spectrogram[:, :, 0], aspect='auto', origin='lower', cmap='viridis')
-    ax.set_title('Generated Mel Spectrogram', fontsize=14, fontweight='bold', color='white')
+    # The real three-channel image, not one channel under a false colormap.
+    # Showing channel 0 through viridis displayed the percussive band alone
+    # and made it look like an ordinary mel spectrogram, which is exactly the
+    # confusion that let the preprocessing drift go unnoticed.
+    ax.imshow(np.clip(spectrogram, 0, 1), aspect='auto', origin='lower')
+    ax.set_title('Model input: R percussive, G harmonic, B mel',
+                 fontsize=12, fontweight='bold', color='white')
     ax.set_xlabel('Time', color='white')
-    ax.set_ylabel('Frequency Bins', color='white')
+    ax.set_ylabel('Frequency bins', color='white')
     ax.tick_params(colors='white')
-    plt.colorbar(im, ax=ax)
     return fig
 
 def get_mood_description(mood):
@@ -308,60 +296,38 @@ def main():
             
             if spectrogram is not None:
                 # Display spectrogram
-                st.subheader("📊 Generated Spectrogram")
-                fig = plot_spectrogram(spectrogram)
+                st.subheader("📊 What the model sees")
+                st.caption(
+                    "Red is percussive energy, green is harmonic content and chroma, "
+                    "blue is the mel spectrogram with spectral contrast. This is the "
+                    "image the network classifies, not a decoration."
+                )
+                fig = plot_spectrogram(spectrogram[0])
                 st.pyplot(fig)
-                
-                # Make prediction
+
                 with st.spinner('Analyzing mood...'):
-                    # Prepare input for model
-                    
-                    if spectrogram.shape != (128, 224, 3):
-                        st.warning(f"Unexpected spectrogram shape: {spectrogram.shape}. Resizing...")
-                        # Resize to match training
-                        pil_img = Image.fromarray((spectrogram * 255).astype(np.uint8))
-                        resized_img = pil_img.resize((224, 128), Image.Resampling.LANCZOS)
-                        spectrogram = np.array(resized_img) / 255.0
+                    # One prediction per 45-second segment, averaged.
+                    #
+                    # A single window can land on an intro and miss the song.
+                    # Averaging is test-time augmentation: one more forward
+                    # pass, and strictly better than trusting whichever
+                    # window happened to come first.
+                    all_predictions = model.predict(spectrogram, verbose=0)
+                    averaged = all_predictions.mean(axis=0)
 
-                    # Prepare input for model - CRITICAL STEP!
-                    input_data = spectrogram.copy()
+                    predicted_class = int(np.argmax(averaged))
+                    confidence = float(np.max(averaged))
+                    predictions = [averaged]
 
-                    # If your model expects (224, 224, 3) but spectrogram is (128, 224, 3)
-                    if input_data.shape[:2] != (224, 224):
-                        # Pad or resize to (224, 224)
-                        padded = np.zeros((224, 224, 3))
-                        padded[:input_data.shape[0], :input_data.shape[1], :] = input_data
-                        input_data = padded
-
-                    # Add batch dimension
-                    input_data = np.expand_dims(input_data, axis=0)
-
-                    st.write(f"Final input shape for model: {input_data.shape}")
-                    
-                    # Get prediction
-                    predictions = model.predict(input_data, verbose=0)
-                    
-                    # DEFINE predicted_class HERE before using it
-                    predicted_class = np.argmax(predictions[0])
-                    confidence = np.max(predictions[0])
-                    
-                    # Class names and colors
-                    class_names = ['Emotional', 'Energetic', 'Peaceful']
+                    class_names = CLASSES
                     class_colors = ['#FF6B6B', '#4ECDC4', '#45B7D1']
                     class_emojis = ['😢', '⚡', '😌']
-                    
-                    # Display debug information AFTER defining predicted_class
-                    st.subheader("🔧 Debug Information")
-                    st.write(f"Input shape: {input_data.shape}")
-                    st.write(f"Input range: [{input_data.min():.3f}, {input_data.max():.3f}]")
-                    st.write(f"Raw predictions: {predictions}")
-                    st.write(f"Predicted class index: {predicted_class}")
 
-                    # Check if model outputs match expected classes
-                    if len(predictions[0]) != 3:
-                        st.error(f"Model expects {len(predictions[0])} classes, but we have 3 mood classes!")
-                    
-                    # Display results
+                    if len(spectrogram) > 1:
+                        st.caption(
+                            f"Averaged over {len(spectrogram)} segments of 45 seconds."
+                        )
+
                     st.subheader("🎯 Prediction Results")
                     
                     # Main prediction box
@@ -463,7 +429,6 @@ def main():
         
         # Model info
         st.header("🤖 Model Architecture")
-        st.write(f"Input shape: {model.input_shape}")
         st.write(f"Output shape: {model.output_shape}")
         
         # Confidence test - MOVED INSIDE THE SIDEBAR AND MAIN FUNCTION
