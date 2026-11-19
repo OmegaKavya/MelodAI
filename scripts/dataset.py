@@ -28,6 +28,23 @@ import random
 
 CLASSES = ["emotional", "energetic", "peaceful"]
 
+# The five source categories collapse into three classes. This mapping was
+# never written down: it existed only as a folder reorganisation, so the
+# only record of it was the arrangement of the output directories. Recovered
+# by matching 127 CSV rows to the class folder their spectrograms landed in.
+#
+# DRIVE joining CALM rather than PARTY is worth noticing. It puts mid-tempo
+# road songs beside genuinely quiet ones, and `peaceful` is the class the
+# models struggle with most. It also leaves `energetic` as PARTY alone, which
+# is why that class has 29 songs against emotional's 60.
+SOURCE_TO_CLASS = {
+    "calm": "peaceful",
+    "drive": "peaceful",
+    "party": "energetic",
+    "romantic": "emotional",
+    "sad": "emotional",
+}
+
 
 def song_of(filename):
     """The song a variant belongs to: everything before the segment marker."""
