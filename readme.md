@@ -16,6 +16,12 @@ Try the hosted app on Streamlit Cloud:
 
 The deployment uses a `packages.txt` to install `ffmpeg` so yt-dlp and pydub can post-process audio (ffmpeg/ffprobe).
 
+## Architecture
+
+The engineering detail, including the three-channel representation, the
+inference lifecycle and what the accuracy figure does and does not mean, is
+in [ARCHITECTURE.md](ARCHITECTURE.md).
+
 ## What this project does
 
 - Downloads 90-second clips for a curated set of songs per mood
