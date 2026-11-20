@@ -54,6 +54,7 @@ logs/
 
 # Models and training artifacts
 /models/*.h5
+/models/*.keras
 # The two shipped models are the exception, tracked through LFS. Experiment
 # checkpoints stay local; these are what the app and the docs refer to.
 !/models/best_model.h5
@@ -64,7 +65,6 @@ logs/
 !/models/corpus.npz
 !/models/projector.joblib
 /models/*.hdf5
-/models/*.keras
 /models/training_log.csv
 
 # Media downloads
