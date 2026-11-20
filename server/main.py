@@ -32,9 +32,11 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 YAMNET_RATE = 16000
 SPECTROGRAM_RATE = 22050
 
-# Two minutes is past the point where more audio changes the verdict, and it
-# bounds what one request can cost.
-MAX_SECONDS = 120
+# Ninety seconds is past the point where more audio changes the verdict, and
+# it is what the 512 MB host affords. Measured: the request plateaus near
+# 440 MB here against 450 at two minutes, because the floor is librosa and
+# numba rather than the audio, so there is nothing to win by cutting further.
+MAX_SECONDS = 90
 MAX_BYTES = 25 * 1024 * 1024
 
 # The spectrogram is sent at the size it will be drawn at. Full resolution is

@@ -1,0 +1,27 @@
+# Render blueprint. One container serves the API and the built client, so
+# there is a single origin and no CORS to keep in step.
+#
+# The free instance caps at 512 MB. This process settles near 440 MB: YAMNet
+# runs in fixed chunks, the display spectrogram is drawn at a coarse hop, and
+# the allocator arena is trimmed after every request. One worker on purpose,
+# because a second doubles the resident set for no gain at this traffic.
+services:
+  - type: web
+    name: melodai
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      # Threads fight for 0.1 CPU and each one carries its own arena.
+      - key: OMP_NUM_THREADS
+        value: "1"
+      - key: OPENBLAS_NUM_THREADS
+        value: "1"
+      - key: NUMBA_CACHE_DIR
+        value: /tmp/numba
+      - key: MPLCONFIGDIR
+        value: /tmp/mpl
