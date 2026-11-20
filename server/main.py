@@ -64,7 +64,17 @@ SPECTROGRAM_HOP = 1024
 
 app = FastAPI(title="MelodAI", docs_url="/api/docs", openapi_url="/api/openapi.json")
 
-origins = os.environ.get("MELODAI_ORIGINS", "http://localhost:5173").split(",")
+# The client is served from Firebase and the API from Render, so these are
+# two origins and the browser will ask. Listed here rather than configured on
+# the host, so a redeploy cannot lose them.
+DEFAULT_ORIGINS = ",".join([
+    "https://melodai.web.app",
+    "https://melodai.firebaseapp.com",
+    "http://localhost:5173",
+    "http://localhost:5174",
+])
+
+origins = os.environ.get("MELODAI_ORIGINS", DEFAULT_ORIGINS).split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip() for o in origins if o.strip()],
