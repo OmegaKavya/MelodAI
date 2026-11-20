@@ -51,6 +51,20 @@ NEIGHBOURS_FOR_PLACEMENT = 5
 # that is under 3% of windows, and they are dropped rather than fabricated.
 CHUNK_SECONDS = 15
 
+# Two guards, both calibrated against the corpus rather than guessed.
+#
+# Hindi film music cannot be detected as such, so the page does not pretend
+# to. What YAMNet can say is whether this is music at all: real songs score
+# 0.55 to 0.97 on AudioSet "Music", while noise, a pure tone and silence
+# score 0.00 to 0.05. Anything under 0.20 sits in the gap and is refused.
+#
+# The second is softer. Corpus songs sit at 0.81 to 0.94 cosine from their
+# nearest neighbour; the same non music clips reach only 0.45 to 0.55. Below
+# 0.70 the upload is outside the distribution the model was fitted on, so the
+# verdict is reported with a warning rather than withheld.
+MUSIC_FLOOR = 0.20
+FAMILIAR_FLOOR = 0.70
+
 # The corpus is keyed by the filename each track was downloaded under, which
 # carries a tail of upload boilerplate and cast lists. Cut at the first of
 # these and the song title is what survives.
@@ -210,11 +224,25 @@ class Runtime:
         weights = weights / total
         return (self.corpus_coords[index] * weights[:, None]).sum(axis=0)
 
+    def is_music(self, scores):
+        """Mean AudioSet "Music" score, and whether it clears the floor."""
+        index = self.class_names.index("Music")
+        score = float(scores.mean(axis=0)[index])
+        return score, score >= MUSIC_FLOOR
+
     def analyse(self, waveform):
         scores, embeddings = self.embed(waveform)
         pooled = embeddings.mean(axis=0)
         position = self.place(pooled)
+        music_score, _ = self.is_music(scores)
+        closest = float(self._similarity(pooled).max())
         return {
+            "music": {"score": music_score, "floor": MUSIC_FLOOR},
+            "familiar": {
+                "closest": closest,
+                "floor": FAMILIAR_FLOOR,
+                "in_distribution": closest >= FAMILIAR_FLOOR,
+            },
             "energy": self.energy(embeddings),
             "hears": self.hears(scores),
             "neighbours": self.neighbours(pooled),

@@ -39,6 +39,11 @@ SPECTROGRAM_RATE = 22050
 MAX_SECONDS = 90
 MAX_BYTES = 25 * 1024 * 1024
 
+# Checked before decoding. The decoder would reject most of these anyway, but
+# it reads the whole file first, and the message it gives is about codecs
+# rather than about what this page wants.
+ALLOWED = {".mp3", ".wav", ".flac", ".m4a", ".ogg", ".aac"}
+
 # The spectrogram is sent at the size it will be drawn at. Full resolution is
 # 1723 columns for 20 seconds, which no screen resolves and no one should pay
 # to download.
@@ -106,6 +111,24 @@ def release_memory():
 def load():
     global runtime
     runtime = Runtime(ROOT)
+    warm()
+
+
+def warm():
+    """Compile the numba paths before any request arrives.
+
+    librosa JIT compiles on first call, which costs tens of seconds on a
+    fractional CPU. Left to the first request, every cold start hands one
+    visitor that bill; done here it happens while the host is still waiting
+    for the port to open.
+    """
+    try:
+        tone = np.sin(np.linspace(0, 220 * 2 * np.pi, SPECTROGRAM_RATE * 2)).astype(np.float32)
+        hybrid_image(tone, sr=SPECTROGRAM_RATE, hop_length=SPECTROGRAM_HOP)
+        runtime.analyse(librosa.resample(
+            tone, orig_sr=SPECTROGRAM_RATE, target_sr=YAMNET_RATE))
+    except Exception:  # noqa: BLE001 - warming is an optimisation, not a gate
+        pass
 
 
 def _decode(data: bytes):
@@ -166,18 +189,48 @@ def corpus():
 
 
 @app.post("/api/analyse")
-async def analyse(file: UploadFile = File(...)):
-    data = await file.read()
+def analyse(file: UploadFile = File(...)):
+    """Deliberately a sync def.
+
+    Decoding, YAMNet and the spectrogram are blocking CPU work. Declared
+    async, they run on the event loop and nothing else is served for the
+    duration, including /api/health. On a host that health checks every few
+    seconds and restarts on failure, that turns every analysis into a
+    restart, which is exactly what it did. As a sync def, FastAPI runs this
+    in a worker thread and the loop stays free to answer.
+    """
+    data = file.file.read()
     if not data:
         raise HTTPException(status_code=400, detail="That file was empty.")
     if len(data) > MAX_BYTES:
-        raise HTTPException(status_code=413, detail="That file is over 25 MB.")
+        raise HTTPException(
+            status_code=413,
+            detail=f"That file is {len(data) / 1e6:.0f} MB. The limit is 25 MB, "
+                   "which is a full length song at a normal bitrate.",
+        )
+
+    suffix = os.path.splitext(file.filename or "")[1].lower()
+    if suffix and suffix not in ALLOWED:
+        raise HTTPException(
+            status_code=415,
+            detail=f"{suffix} is not an audio format this reads. "
+                   "MP3, WAV, FLAC, M4A, OGG and AAC all work.",
+        )
 
     y, y16 = _decode(data)
     duration = float(len(y) / SPECTROGRAM_RATE)
 
     result = runtime.analyse(y16)
     del y16
+
+    # Refusing is better than printing a confident verdict about a podcast.
+    if result["music"]["score"] < result["music"]["floor"]:
+        raise HTTPException(
+            status_code=422,
+            detail="That does not sound like music. This reads songs: it was "
+                   "fitted on Hindi film tracks, and speech or noise gives it "
+                   "nothing to work with.",
+        )
     result["spectrogram"] = _spectrogram_payload(y)
     del y
 
