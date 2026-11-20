@@ -18,6 +18,21 @@ export default function App() {
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
 
+  // Loaded only when asked for, so the 327 kB of precomputed result is not
+  // in the path of every visitor who does intend to upload something.
+  const showSample = useCallback(async () => {
+    setStatus("working");
+    setError("");
+    try {
+      const mod = await import("./sample.json");
+      setResult(mod.default);
+      setStatus("done");
+    } catch {
+      setError("The sample could not be loaded.");
+      setStatus("failed");
+    }
+  }, []);
+
   const run = useCallback(async (file) => {
     setStatus("working");
     setError("");
@@ -35,7 +50,14 @@ export default function App() {
     <>
       <Hero />
       <main className="shell">
-        <Upload onFile={run} status={status} error={error} filename={result?.title} />
+        <Upload
+          onFile={run}
+          onSample={showSample}
+          status={status}
+          error={error}
+          filename={result?.title}
+          isSample={result?.sample}
+        />
 
         {result && (
           <div className="results">

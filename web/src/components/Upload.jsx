@@ -7,7 +7,7 @@ const ACCEPT = ".mp3,.wav,.flac,.m4a,audio/*";
 
 // Styled as a cinema ticket because that is the one object in this visual
 // language that means "put this in and something happens".
-export default function Upload({ onFile, status, error, filename }) {
+export default function Upload({ onFile, onSample, status, error, filename, isSample }) {
   const inputRef = useRef(null);
   const [over, setOver] = useState(false);
   const working = status === "working";
@@ -50,16 +50,32 @@ export default function Upload({ onFile, status, error, filename }) {
               : filename && status === "done"
               ? filename
               : "Drop an MP3, WAV or FLAC, or choose a file."}
+            {isSample && status === "done" && (
+              <em className="ticket-tag">prepared example</em>
+            )}
           </p>
 
-          <button
-            type="button"
-            className="ticket-button"
-            onClick={() => inputRef.current?.click()}
-            disabled={working}
-          >
-            {working ? "Working" : filename ? "Choose another" : "Choose a file"}
-          </button>
+          <div className="ticket-actions">
+            <button
+              type="button"
+              className="ticket-button"
+              onClick={() => inputRef.current?.click()}
+              disabled={working}
+            >
+              {working ? "Working" : filename ? "Choose another" : "Choose a file"}
+            </button>
+
+            {/* Most visitors will not have a Hindi film song to hand. Without
+                this they never see the page do anything. */}
+            <button
+              type="button"
+              className="ticket-ghost"
+              onClick={onSample}
+              disabled={working}
+            >
+              Or see a worked example
+            </button>
+          </div>
 
           <input
             ref={inputRef}
