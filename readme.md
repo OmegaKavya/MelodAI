@@ -2,7 +2,7 @@
 
 **What a neural network can actually tell about a Bollywood track, and what it cannot.**
 
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://melod-ai.streamlit.app/)
+**[Live](https://melodai.web.app)** · React on Firebase Hosting, FastAPI on Render.
 
 This began as a three-way mood classifier reporting 66% accuracy. It is now
 an energy detector that reports 26 of 26, plus the measurement explaining why
@@ -86,11 +86,16 @@ Full detail in [ARCHITECTURE.md](ARCHITECTURE.md).
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-streamlit run app.py
+# API (serves the built client too, if web/dist exists)
+pip install -r server/requirements.txt
+uvicorn server.main:app --port 8711
+
+# Client, in a second shell: proxies /api to the above
+cd web && npm install && npm run dev
 ```
 
 The pins in `requirements.txt` are deliberate: TensorFlow 2.16 needs
-`numpy<2` and `protobuf<5`, Streamlit from 1.40 needs `protobuf>=5.26`, and
+`numpy<2` and `protobuf<5`, Streamlit from 1.40 needed `protobuf>=5.26`, and
 umap-learn 0.6 needs `numpy>=2`. Loosening any one of them installs cleanly
 and fails at import.
 

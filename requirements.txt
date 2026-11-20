@@ -1,3 +1,6 @@
+# TRAINING AND EXPERIMENTS ONLY. The deployed service installs
+# server/requirements.txt, which carries no TensorFlow at all.
+#
 # Pinned deliberately, not loosely. This set has three mutually constraining
 # edges and a floating version breaks at least one of them:
 #

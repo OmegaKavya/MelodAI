@@ -78,8 +78,8 @@ export default function Upload({ onFile, status, error, filename }) {
       )}
 
       <p className="upload-small">
-        Audio is analysed and discarded. Nothing is stored, and the first two
-        minutes are all that is read.
+        Audio is analysed and discarded. Nothing is stored, and the first ninety
+        seconds are all that is read.
       </p>
     </Panel>
   );

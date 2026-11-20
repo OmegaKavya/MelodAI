@@ -10,7 +10,8 @@ This document details the engineering architecture of MelodAI: how audio becomes
 
 ```mermaid
 flowchart LR
-    U[User Browser] -->|MP3 upload or YouTube URL| S[Streamlit App: app.py]
+    U[User Browser] -->|MP3 upload| S[React client on Firebase Hosting]
+    S -->|POST /api/analyse| A[FastAPI on Render: server/main.py]
 
     S --> DL[Audio Acquisition: yt-dlp + ffmpeg]
     S --> REP[Representation Builder: melodai/spectrogram.py]
@@ -47,7 +48,9 @@ flowchart LR
 ## 2. Layered Software Architecture
 
 ### Presentation Layer (`app.py`)
-Streamlit single-page application. Accepts an MP3/WAV upload or a YouTube URL, renders the exact three-channel image the network receives, and reports the predicted mood with its probability distribution. The preview is the model's literal input, not a decorative spectrogram, so a preprocessing fault is visible rather than silent.
+React client built by Vite and served as static files from Firebase Hosting; FastAPI service on Render behind `/api`. The two are separate origins, so the API carries an explicit CORS allowlist.
+
+The client accepts an MP3, WAV, FLAC, M4A, OGG or AAC upload. It draws the exact three-channel image the network receives, with the per-window energy curve overlaid on the same time axis, so a preprocessing fault is visible rather than silent. The corpus map is baked into the bundle at build time by `scripts/bake_corpus.py`, so the page is complete on first paint without touching the API — which matters, because a free instance sleeps after fifteen minutes.
 
 ### Representation Layer (`melodai/spectrogram.py`)
 The single source of truth for turning audio into model input, imported by both the app and the training scripts. Exposes `hybrid_image`, `to_model_input`, `segments` and `predict`. This module exists because its absence was a defect: training and serving each built their own representation and silently diverged (see §4).
@@ -242,6 +245,12 @@ Step 5 is test-time augmentation: one extra forward pass per window, strictly be
 
 ## 6. Operational Notes
 
-- **ffmpeg** is a system dependency, declared in `packages.txt` for Streamlit Cloud; `yt-dlp` and `pydub` both require it.
+- **ffmpeg** is a system dependency, installed in the image, so librosa can fall back to audioread for formats libsndfile cannot decode.
 - **YouTube ingestion is best-effort.** Downloads originating from datacenter IP ranges are frequently refused. Upload is the reliable path on any hosted deployment.
-- **Model size** is 35 MB, tracked through Git LFS. TensorFlow's resident footprint makes a 512 MB host unviable; the deployment target needs 1 GB or more.
+- **Serving carries no TensorFlow.** YAMNet runs from a vendored 16 MB TFLite build and the energy head is four matrix multiplies over NumPy arrays exported by `scripts/export_energy_head.py`, which refuses to write unless it reproduces Keras to 1e-5. Measured against the TensorFlow path on real tracks: identical labels, scores to 1e-8, same AudioSet ranking and neighbours.
+
+  That took the install from 2.1 GB to 441 MB and removed the `numpy<2` / `protobuf<5` / Python-3.12 constraint knot. Peak request memory went from 713 MB to roughly 450 by running YAMNet in fixed 15-second chunks, drawing the display spectrogram at a coarse hop over a 30-second window, and calling `malloc_trim` after each request, which is what makes a 512 MB instance viable.
+
+- **The analysis endpoint is a sync `def`, deliberately.** Declared `async`, its blocking CPU work occupies the event loop and `/api/health` cannot answer for the duration; on a host that health checks and restarts on failure, every analysis became a restart. As a sync `def` FastAPI runs it in a worker thread.
+
+- **The training checkpoints** remain 35 MB each through Git LFS. Nothing at serving time loads them.
