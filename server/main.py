@@ -16,7 +16,8 @@ import librosa
 import numpy as np
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from melodai.runtime import Runtime, pretty_title
 from melodai.spectrogram import hybrid_image
@@ -131,3 +132,21 @@ async def analyse(file: UploadFile = File(...)):
     result["title"] = pretty_title(file.filename or "Your track")
     result["filename"] = file.filename
     return JSONResponse(result)
+
+
+# The built client is served by this same process when it is present, which is
+# how the deployed Space runs: one origin, so no CORS and no base URL to keep
+# in step. In development Vite serves the client and proxies /api here, and
+# this block simply does not apply.
+DIST = os.path.join(ROOT, "web", "dist")
+
+if os.path.isdir(DIST):
+    app.mount("/assets", StaticFiles(directory=os.path.join(DIST, "assets")), name="assets")
+
+    @app.get("/favicon.svg", include_in_schema=False)
+    def favicon():
+        return FileResponse(os.path.join(DIST, "favicon.svg"))
+
+    @app.get("/", include_in_schema=False)
+    def index():
+        return FileResponse(os.path.join(DIST, "index.html"))
