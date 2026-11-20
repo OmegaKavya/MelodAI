@@ -30,18 +30,23 @@ export default function Hero() {
           page shows you both.
         </p>
 
+        {/* Three figures a stranger can read without knowing the project.
+            The jargon versions ("held out", "k-NN", "arousal vs valence")
+            meant nothing to anyone who had not built it. */}
         <dl className="hero-stats">
           <div>
-            <dt>Energy, held out</dt>
-            <dd>26<span>/26</span></dd>
+            <dt className="win">26 out of 26</dt>
+            <dd>songs where it called loud or quiet correctly</dd>
           </div>
           <div>
-            <dt>Mood, as first built</dt>
-            <dd>0<span>/9</span></dd>
+            <dt className="fail">0 out of 9</dt>
+            <dd>quiet songs the original mood model ever found, while it
+              reported 66% accuracy</dd>
           </div>
           <div>
-            <dt>Arousal vs valence, k-NN</dt>
-            <dd>85<span>% / 45%</span></dd>
+            <dt className="win">85% vs 45%</dt>
+            <dd>accuracy telling loud from quiet, against happy from sad.
+              Guessing scores 36%</dd>
           </div>
         </dl>
       </div>

@@ -64,37 +64,35 @@
 }
 
 .hero-stats {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 2.75rem;
-  margin: 2.5rem 0 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2rem;
+  max-width: 920px;
+  margin: 2.6rem auto 0;
+  text-align: center;
 }
 
-.hero-stats div { text-align: center; }
+.hero-stats div { display: grid; gap: 0.3rem; }
 
 .hero-stats dt {
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.17em;
-  text-transform: uppercase;
-  color: var(--text-3);
-  margin-bottom: 0.3rem;
+  font-family: var(--display);
+  font-size: clamp(1.5rem, 3.2vw, 2.1rem);
+  font-weight: 700;
+  line-height: 1.05;
 }
+
+/* The middle figure is the failure, and reads as one. Never colour alone:
+   the sentence underneath says what it is. */
+.hero-stats dt.win { color: var(--gold); text-shadow: 0 0 22px rgba(233, 180, 76, 0.28); }
+.hero-stats dt.fail { color: var(--sindoor); text-shadow: 0 0 22px rgba(215, 38, 56, 0.25); }
 
 .hero-stats dd {
   margin: 0;
-  font-family: var(--display);
-  font-size: 2.1rem;
-  font-weight: 700;
-  color: var(--gold);
-  line-height: 1;
-}
-
-.hero-stats dd span {
-  font-size: 1.1rem;
-  color: var(--text-3);
-  font-weight: 500;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: var(--text-2);
+  max-width: 26ch;
+  justify-self: center;
 }
 
 @media (max-width: 600px) {
