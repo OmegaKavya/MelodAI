@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { analyse, fetchCorpus } from "./api";
+import React, { useCallback, useState } from "react";
+import { analyse, corpus as bakedCorpus } from "./api";
 import Hero from "./components/Hero.jsx";
 import Upload from "./components/Upload.jsx";
 import Verdict from "./components/Verdict.jsx";
@@ -12,18 +12,12 @@ import Method from "./components/Method.jsx";
 import "./App.css";
 
 export default function App() {
-  const [corpus, setCorpus] = useState([]);
+  // Baked into the bundle at build time by scripts/bake_corpus.py, so the
+  // map draws on first paint with no request at all.
+  const corpus = bakedCorpus;
   const [result, setResult] = useState(null);
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    // The map is worth drawing before anyone uploads anything: it is the
-    // finding, not a frame for the upload.
-    fetchCorpus()
-      .then((data) => setCorpus(data.songs))
-      .catch(() => setCorpus([]));
-  }, []);
 
   const run = useCallback(async (file) => {
     setStatus("working");

@@ -1,6 +1,11 @@
 // One place that knows the server exists.
+//
+// The client is served from Firebase and the API from a separate free tier
+// host, so requests carry an absolute base in production. In development Vite
+// proxies /api and the base is empty.
+const BASE = (import.meta.env.VITE_API_BASE || "").replace(/\/$/, "");
 async function request(path, options) {
-  const response = await fetch(path, options);
+  const response = await fetch(`${BASE}${path}`, options);
   if (!response.ok) {
     let detail = `Request failed (${response.status})`;
     try {
@@ -15,6 +20,11 @@ async function request(path, options) {
   return response.json();
 }
 
+// The corpus ships inside the bundle. The map is the finding, and it should
+// not be blank for thirty seconds while a sleeping free instance wakes up.
+export { default as corpus } from "./corpus.json";
+
+// Kept for parity with the server, and used by nothing on the happy path.
 export const fetchCorpus = () => request("/api/corpus");
 
 export function analyse(file) {
