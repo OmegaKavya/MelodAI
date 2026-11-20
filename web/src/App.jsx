@@ -7,6 +7,7 @@ import Timeline from "./components/Timeline.jsx";
 import Hears from "./components/Hears.jsx";
 import Neighbours from "./components/Neighbours.jsx";
 import MoodMap from "./components/MoodMap.jsx";
+import Finding from "./components/Finding.jsx";
 import Signature from "./components/Signature.jsx";
 import "./App.css";
 
@@ -78,9 +79,13 @@ export default function App() {
               <Neighbours neighbours={result.neighbours} />
             </div>
             <MoodMap corpus={corpus} position={result.position} />
+            <Finding />
           </div>
         )}
 
+        {/* Before anything is uploaded the page still has to say what it is
+            and how the headline figures resolved. */}
+        {!result && <Finding />}
         {!result && <MoodMap corpus={corpus} position={null} />}
       </main>
 

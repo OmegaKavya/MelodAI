@@ -38,12 +38,18 @@ export default function MoodMap({ corpus, position }) {
 
   return (
     <Panel className="map" aria-labelledby="map-heading">
-      <h2 id="map-heading">The corpus, in two dimensions</h2>
+      <h2 id="map-heading">Every song in the collection, placed by sound</h2>
       <p className="note">
-        Every song placed by its YAMNet embedding. Energetic pulls clear of the
-        rest. Peaceful and emotional overlap almost completely, which is the
-        whole finding: arousal is audible in this representation and valence is
-        not.
+        Each dot is one of the 131 Hindi film songs the model was fitted on.
+        Songs that sound alike to the network sit near each other; the axes
+        themselves carry no units, which is normal for a projection of this
+        kind. Hover any dot to see the song.
+      </p>
+      <p className="map-look">
+        <b>What to look for.</b> The gold cluster pulls away from the rest:
+        high-energy songs really do sound different. Teal and rose sit on top
+        of one another, and no amount of training separates them. That overlap
+        is the reason this page reports energy and nothing else.
       </p>
 
       <ul className="map-legend">
@@ -94,9 +100,10 @@ export default function MoodMap({ corpus, position }) {
       </div>
 
       <p className="map-foot">
-        Placement of an uploaded track interpolates between its five nearest
-        corpus songs. That agrees with re-running the projection to about 13%
-        of the map's width, so read it as a neighbourhood, not a coordinate.
+        An uploaded track is placed between its five nearest corpus songs.
+        That lands within about 13% of the map's width of where re-running the
+        projection would put it, so read the star as a neighbourhood rather
+        than an exact coordinate.
       </p>
     </Panel>
   );

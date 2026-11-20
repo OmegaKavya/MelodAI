@@ -1,3 +1,14 @@
+.map-look {
+  margin: -0.4rem 0 1.1rem;
+  padding: 0.75rem 0.9rem;
+  border-left: 2px solid var(--gold-deep);
+  background: rgba(233, 180, 76, 0.07);
+  font-size: 0.86rem;
+  color: var(--text-2);
+}
+
+.map-look b { color: var(--text); }
+
 .map-legend {
   list-style: none;
   display: flex;
