@@ -1,0 +1,44 @@
+.sig { display: grid; justify-items: center; gap: 0.1rem; }
+
+.sig-mark { width: 92px; height: auto; overflow: visible; }
+
+.sig-path {
+  fill: none;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  /* Roughly the path length. The dash offset starts at the full length so
+     nothing is drawn, then runs to zero, which reads as a pen stroke. */
+  stroke-dasharray: 360;
+  stroke-dashoffset: 360;
+  filter: drop-shadow(0 0 7px rgba(233, 180, 76, 0.4));
+}
+
+.sig.shown .sig-path {
+  animation: sig-draw 1900ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+
+@keyframes sig-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+.sig-name {
+  margin: 0.2rem 0 0;
+  font-family: var(--display);
+  font-size: 1.12rem;
+  font-style: italic;
+  letter-spacing: 0.02em;
+  color: var(--text-2);
+}
+
+.sig-note {
+  margin: 0.15rem 0 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+/* A mark that never finishes drawing is just a blank space. */
+@media (prefers-reduced-motion: reduce) {
+  .sig-path { stroke-dashoffset: 0; }
+}

@@ -7,6 +7,7 @@ import Timeline from "./components/Timeline.jsx";
 import Hears from "./components/Hears.jsx";
 import Neighbours from "./components/Neighbours.jsx";
 import MoodMap from "./components/MoodMap.jsx";
+import Signature from "./components/Signature.jsx";
 import "./App.css";
 
 export default function App() {
@@ -63,9 +64,11 @@ export default function App() {
 
       <footer className="footer">
         <hr className="rule" />
+        <Signature note="Built and measured end to end" />
         <p>
-          Built by Kavya Aggarwal.{" "}
           <a href="https://github.com/OmegaKavya/MelodAI">Source and method</a>
+          <span aria-hidden="true"> · </span>
+          <a href="https://aggarwalkavya.web.app">More work</a>
         </p>
       </footer>
     </>

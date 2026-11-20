@@ -33,11 +33,21 @@
 
 .hero-rule span:last-child { background: linear-gradient(90deg, var(--gold), transparent); }
 
-.hero-rule i {
-  width: 7px;
-  height: 7px;
-  background: var(--gold);
-  transform: rotate(45deg);
+/* The same mark that signs the foot of the page, used here as the ornament
+   between the two rules. */
+.hero-infinity {
+  width: 34px;
+  height: auto;
+  overflow: visible;
+  flex: 0 0 auto;
+}
+
+.hero-infinity path {
+  fill: none;
+  stroke: var(--gold);
+  stroke-width: 4;
+  stroke-linecap: round;
+  opacity: 0.9;
 }
 
 .hero h1 {
