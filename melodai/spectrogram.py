@@ -43,31 +43,37 @@ def _norm(x):
     return np.clip((x - lo) / (hi - lo + 1e-8), 0, 1)
 
 
-def hybrid_image(y, sr=SAMPLE_RATE):
+def hybrid_image(y, sr=SAMPLE_RATE, hop_length=HOP_LENGTH):
     """The three-channel image the model was trained on.
 
     Red is percussive energy, green is harmonic content blended with chroma,
     blue is the mel spectrogram blended with spectral contrast. Each channel
     is percentile-normalised and lightly blurred, exactly as in
     scripts/generate_smart_segments.py.
+
+    hop_length is a parameter only so the server can draw a coarser image than
+    training used. Anything feeding the model must keep the default, because
+    the model learned on that hop; a display that is downsampled to 512 columns
+    before it is sent cannot show the difference and costs several times the
+    memory to compute at full resolution.
     """
     mel = librosa.feature.melspectrogram(
-        y=y, sr=sr, n_mels=N_MELS, hop_length=HOP_LENGTH,
+        y=y, sr=sr, n_mels=N_MELS, hop_length=hop_length,
         n_fft=N_FFT, fmin=FMIN, fmax=FMAX,
     )
     mel_db = librosa.power_to_db(mel, ref=np.max, top_db=80)
 
     harmonic, percussive = librosa.effects.hpss(y)
     mel_harmonic_db = librosa.power_to_db(
-        librosa.feature.melspectrogram(y=harmonic, sr=sr, n_mels=N_MELS, hop_length=HOP_LENGTH),
+        librosa.feature.melspectrogram(y=harmonic, sr=sr, n_mels=N_MELS, hop_length=hop_length),
         ref=np.max,
     )
     mel_percussive_db = librosa.power_to_db(
-        librosa.feature.melspectrogram(y=percussive, sr=sr, n_mels=N_MELS, hop_length=HOP_LENGTH),
+        librosa.feature.melspectrogram(y=percussive, sr=sr, n_mels=N_MELS, hop_length=hop_length),
         ref=np.max,
     )
-    chroma = librosa.feature.chroma_cqt(y=y, sr=sr, hop_length=HOP_LENGTH)
-    contrast = librosa.feature.spectral_contrast(y=y, sr=sr, hop_length=HOP_LENGTH)
+    chroma = librosa.feature.chroma_cqt(y=y, sr=sr, hop_length=hop_length)
+    contrast = librosa.feature.spectral_contrast(y=y, sr=sr, hop_length=hop_length)
 
     # Every feature has its own frame count; the shortest wins so the stack
     # is rectangular.

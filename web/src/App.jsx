@@ -52,7 +52,11 @@ export default function App() {
               <Hears hears={result.hears} />
               <Neighbours neighbours={result.neighbours} />
             </div>
-            <SpectrogramView spectrogram={result.spectrogram} duration={result.duration} />
+            <SpectrogramView
+              spectrogram={result.spectrogram}
+              duration={result.spectrogram_seconds ?? result.duration}
+              full={result.duration}
+            />
             <MoodMap corpus={corpus} position={result.position} />
           </div>
         )}

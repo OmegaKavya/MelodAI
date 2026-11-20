@@ -9,6 +9,9 @@ client draws it, which keeps matplotlib and OpenCV out of the server and lets
 the picture respond to a cursor instead of sitting there as a flat image.
 """
 import base64
+import ctypes
+import ctypes.util
+import gc
 import io
 import os
 
@@ -40,6 +43,18 @@ MAX_BYTES = 25 * 1024 * 1024
 SPECTROGRAM_WIDTH = 512
 SPECTROGRAM_HEIGHT = 128
 
+# The spectrogram panel is drawn from one segment, not the whole upload.
+# Harmonic/percussive separation over two minutes costs more memory than the
+# rest of the request together, and 45 seconds is the segment length the
+# convolutional model was trained on, so this is the picture it was shown.
+SPECTROGRAM_SECONDS = 30
+
+# Four times training's hop. The image is reduced to 512 columns before it is
+# sent, so a finer hop would be averaged away on the way out, and computing it
+# costs well over a hundred megabytes of peak memory. Anything that feeds the
+# model still uses the training hop; this is display only.
+SPECTROGRAM_HOP = 1024
+
 app = FastAPI(title="MelodAI", docs_url="/api/docs", openapi_url="/api/openapi.json")
 
 origins = os.environ.get("MELODAI_ORIGINS", "http://localhost:5173").split(",")
@@ -51,6 +66,38 @@ app.add_middleware(
 )
 
 runtime = None
+
+
+def _make_trim():
+    """Return freed arena memory to the OS after a request, where we can.
+
+    librosa and numba leave a few hundred megabytes of freed-but-retained
+    arena behind. glibc only returns it on malloc_trim, so a long lived
+    server otherwise sits at its high water mark forever, which is the
+    difference between fitting a 512 MB host and being killed by it.
+
+    Absent on macOS and musl, where this resolves to None and is skipped.
+    """
+    name = ctypes.util.find_library("c")
+    if not name:
+        return None
+    try:
+        libc = ctypes.CDLL(name)
+        trim = libc.malloc_trim
+    except (OSError, AttributeError):
+        return None
+    trim.argtypes = [ctypes.c_size_t]
+    trim.restype = ctypes.c_int
+    return trim
+
+
+_trim = _make_trim()
+
+
+def release_memory():
+    gc.collect()
+    if _trim is not None:
+        _trim(0)
 
 
 @app.on_event("startup")
@@ -91,7 +138,8 @@ def _downsample(img):
 
 
 def _spectrogram_payload(y):
-    img = hybrid_image(y, sr=SPECTROGRAM_RATE)
+    y = y[: SPECTROGRAM_SECONDS * SPECTROGRAM_RATE]
+    img = hybrid_image(y, sr=SPECTROGRAM_RATE, hop_length=SPECTROGRAM_HOP)
     small = _downsample(img)
     # Row 0 is the lowest frequency; flip so the client can blit it straight
     # into a canvas, where row 0 is the top.
@@ -124,13 +172,21 @@ async def analyse(file: UploadFile = File(...)):
         raise HTTPException(status_code=413, detail="That file is over 25 MB.")
 
     y, y16 = _decode(data)
+    duration = float(len(y) / SPECTROGRAM_RATE)
+
     result = runtime.analyse(y16)
+    del y16
     result["spectrogram"] = _spectrogram_payload(y)
-    result["duration"] = float(len(y) / SPECTROGRAM_RATE)
+    del y
+
+    result["duration"] = duration
+    result["spectrogram_seconds"] = min(SPECTROGRAM_SECONDS, duration)
     # The corpus is titled by the same rule, so an uploaded file and the
     # songs it sits beside read alike.
     result["title"] = pretty_title(file.filename or "Your track")
     result["filename"] = file.filename
+
+    release_memory()
     return JSONResponse(result)
 
 

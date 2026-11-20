@@ -12,7 +12,7 @@ const CHANNELS = [
 // The picture the model was trained on, drawn from the raw array the server
 // sent. Drawing it here rather than receiving a PNG keeps an image encoder
 // out of the server and lets the reader interrogate it with a cursor.
-export default function SpectrogramView({ spectrogram, duration }) {
+export default function SpectrogramView({ spectrogram, duration, full }) {
   const canvasRef = useRef(null);
   const [probe, setProbe] = useState(null);
   const pixelsRef = useRef(null);
@@ -60,6 +60,12 @@ export default function SpectrogramView({ spectrogram, duration }) {
         Not a picture of the waveform. Three separated representations stacked
         into one image, which is the form the convolutional model was trained
         on. Time runs left to right, pitch bottom to top.
+        {full > duration + 1 && (
+          <>
+            {" "}Showing the first {Math.round(duration)} seconds, the segment
+            length the model was trained on.
+          </>
+        )}
       </p>
 
       <canvas

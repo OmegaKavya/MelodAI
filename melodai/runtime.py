@@ -40,6 +40,17 @@ GENERIC = {"Music", "Speech", "Musical instrument", "Sound effect", "Silence",
 
 NEIGHBOURS_FOR_PLACEMENT = 5
 
+# YAMNet is run over the track in fixed length chunks rather than in one call.
+# A single invoke on two minutes of audio allocates intermediate tensors for
+# every frame at once and pushed the server past 700 MB; in chunks it holds
+# flat. Fixed length also means the interpreter allocates once and is reused,
+# instead of reallocating for every different track duration.
+#
+# The cost is the frames that would have straddled a boundary: YAMNet hops
+# 0.48s, so each join loses about one frame out of thirty. Over a full track
+# that is under 3% of windows, and they are dropped rather than fabricated.
+CHUNK_SECONDS = 15
+
 # The corpus is keyed by the filename each track was downloaded under, which
 # carries a tail of upload boilerplate and cast lists. Cut at the first of
 # these and the song title is what survives.
@@ -100,11 +111,8 @@ class Runtime:
 
     # ---- the pieces -------------------------------------------------------
 
-    def embed(self, waveform):
-        """YAMNet frame scores and embeddings for one waveform."""
-        waveform = np.ascontiguousarray(waveform, dtype=np.float32)
-        # The interpreter is built for a fixed input length, so it has to be
-        # resized whenever a track of a different duration arrives.
+    def _invoke(self, waveform):
+        """One interpreter pass, resizing only when the length changes."""
         if self._allocated != len(waveform):
             self.interpreter.resize_tensor_input(
                 self._input[0]["index"], [len(waveform)], strict=True)
@@ -112,9 +120,31 @@ class Runtime:
             self._allocated = len(waveform)
         self.interpreter.set_tensor(self._input[0]["index"], waveform)
         self.interpreter.invoke()
-        scores = self.interpreter.get_tensor(self._output[0]["index"])
-        embeddings = self.interpreter.get_tensor(self._output[1]["index"])
-        return np.asarray(scores), np.asarray(embeddings)
+        # Copied, because the next invoke overwrites the interpreter's buffers.
+        return (
+            np.array(self.interpreter.get_tensor(self._output[0]["index"])),
+            np.array(self.interpreter.get_tensor(self._output[1]["index"])),
+        )
+
+    def embed(self, waveform):
+        """YAMNet frame scores and embeddings, taken a chunk at a time."""
+        waveform = np.ascontiguousarray(waveform, dtype=np.float32)
+        size = CHUNK_SECONDS * SAMPLE_RATE
+
+        if len(waveform) <= size:
+            return self._invoke(waveform)
+
+        scores, embeddings = [], []
+        for start in range(0, len(waveform), size):
+            chunk = waveform[start : start + size]
+            # A tail shorter than one YAMNet window produces no frames and
+            # would only cost an interpreter reallocation.
+            if len(chunk) < SAMPLE_RATE:
+                break
+            s, e = self._invoke(np.ascontiguousarray(chunk))
+            scores.append(s)
+            embeddings.append(e)
+        return np.concatenate(scores), np.concatenate(embeddings)
 
     def energy(self, embeddings):
         """One verdict for the track, plus the per-window curve behind it.

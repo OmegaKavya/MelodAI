@@ -30,5 +30,13 @@ COPY models/energy_head.npz models/corpus.npz models/yamnet.tflite models/yamnet
 COPY --from=web /build/dist ./web/dist
 
 USER app
+
+# 7860 is what Hugging Face expects; Cloud Run and Render inject $PORT. One
+# image serves both rather than one Dockerfile per host.
+ENV PORT=7860
 EXPOSE 7860
-CMD ["uvicorn", "server.main:app", "--host", "0.0.0.0", "--port", "7860"]
+
+# One worker on purpose. The process holds the interpreter and the corpus and
+# settles near 450 MB; a second worker doubles that for no gain on a portfolio
+# traffic level.
+CMD ["sh", "-c", "uvicorn server.main:app --host 0.0.0.0 --port ${PORT:-7860} --workers 1"]
