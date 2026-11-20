@@ -1,0 +1,40 @@
+.neighbours-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.2rem; }
+
+.neighbours-list li {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.neighbours-list li:last-child { border-bottom: 0; }
+
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--text-3); }
+.dot.peaceful { background: var(--mood-peaceful); }
+.dot.energetic { background: var(--mood-energetic); }
+.dot.emotional { background: var(--mood-emotional); }
+
+.neighbours-title {
+  font-family: var(--display);
+  font-size: 0.98rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.neighbours-mood {
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.neighbours-score {
+  font-family: var(--display);
+  font-size: 0.92rem;
+  color: var(--gold);
+  min-width: 3ch;
+  text-align: right;
+}

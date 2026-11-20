@@ -1,0 +1,130 @@
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0);
+  white-space: nowrap; border: 0;
+}
+
+.upload { margin-top: 1.5rem; }
+
+.ticket {
+  display: flex;
+  align-items: stretch;
+  border: 1px dashed var(--rule);
+  border-radius: var(--radius);
+  background: rgba(233, 180, 76, 0.03);
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+.ticket.over {
+  border-color: var(--gold);
+  background: rgba(233, 180, 76, 0.09);
+}
+
+.ticket.working { opacity: 0.75; }
+
+/* The perforated stub. The notches are two radial gradients punched out of
+   the divider so it reads as torn rather than drawn. */
+.ticket-stub {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 84px;
+  flex: 0 0 84px;
+  border-right: 1px dashed var(--rule);
+  font-size: 1.7rem;
+  color: rgba(233, 180, 76, 0.5);
+}
+
+.ticket-stub::before,
+.ticket-stub::after {
+  content: "";
+  position: absolute;
+  right: -9px;
+  width: 17px; height: 17px;
+  border-radius: 50%;
+  background: var(--ink);
+  border: 1px dashed var(--rule);
+}
+
+.ticket-stub::before { top: -9px; }
+.ticket-stub::after { bottom: -9px; }
+
+.ticket-body { padding: 1.5rem 1.6rem; flex: 1; min-width: 0; }
+
+.ticket-line {
+  font-family: var(--display);
+  font-size: 1.22rem;
+  margin: 0.25rem 0 1rem;
+  overflow-wrap: anywhere;
+}
+
+.ticket-button {
+  font-family: var(--sans);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: linear-gradient(96deg, var(--gold-deep), var(--gold-bright) 45%, var(--gold));
+  border: 0;
+  border-radius: 2px;
+  padding: 0.6rem 1.3rem;
+  cursor: pointer;
+  transition: filter 140ms ease, transform 140ms ease;
+}
+
+.ticket-button:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
+.ticket-button:disabled { cursor: progress; filter: saturate(0.5); }
+.ticket-button:focus-visible { outline: 2px solid var(--gold-bright); outline-offset: 3px; }
+
+/* A sweep rather than a percentage, because the server reports no progress
+   and a fake percentage would be a lie. */
+.progress {
+  position: relative;
+  height: 2px;
+  margin-top: 1rem;
+  overflow: hidden;
+  background: var(--rule-soft);
+}
+
+.progress::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 34%;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  animation: sweep 1.25s ease-in-out infinite;
+}
+
+@keyframes sweep {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(300%); }
+}
+
+.upload-error {
+  margin: 1rem 0 0;
+  padding: 0.7rem 0.9rem;
+  border-left: 2px solid var(--sindoor);
+  background: rgba(215, 38, 56, 0.1);
+  color: #f3b8bf;
+  font-size: 0.9rem;
+}
+
+.upload-small {
+  margin: 1rem 0 0;
+  color: var(--text-3);
+  font-size: 0.8rem;
+}
+
+@media (max-width: 560px) {
+  .ticket { flex-direction: column; }
+  .ticket-stub {
+    width: auto; flex: 0 0 52px;
+    border-right: 0; border-bottom: 1px dashed var(--rule);
+  }
+  .ticket-stub::before, .ticket-stub::after { right: auto; top: auto; bottom: -9px; }
+  .ticket-stub::before { left: -9px; }
+  .ticket-stub::after { right: -9px; }
+}

@@ -1,0 +1,49 @@
+.spectro-canvas {
+  width: 100%;
+  height: clamp(160px, 26vw, 260px);
+  display: block;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  image-rendering: auto;
+  cursor: crosshair;
+  background: #000;
+}
+
+.spectro-key {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.spectro-key li {
+  display: grid;
+  grid-template-columns: 11px 4.2rem 1fr 2.6rem;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.84rem;
+}
+
+.swatch { width: 11px; height: 11px; border-radius: 2px; }
+
+.spectro-key b { font-weight: 600; color: var(--text); }
+.spectro-key span { color: var(--text-3); }
+
+.spectro-key em {
+  font-style: normal;
+  font-family: var(--display);
+  text-align: right;
+  color: var(--gold);
+}
+
+.spectro-readout {
+  margin: 0.8rem 0 0;
+  font-size: 0.84rem;
+  color: var(--text-3);
+  min-height: 1.4em;
+}
+
+@media (max-width: 560px) {
+  .spectro-key li { grid-template-columns: 11px 3.6rem 1fr 2.4rem; font-size: 0.78rem; }
+}

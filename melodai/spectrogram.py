@@ -19,11 +19,7 @@ Both paths import this module now, so they cannot drift again.
 import os
 import tempfile
 
-import cv2
 import librosa
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import numpy as np
 from scipy.ndimage import gaussian_filter
 
@@ -107,6 +103,14 @@ def to_model_input(img):
     to 8 bits, and the model learned on the result, so inference has to do it
     too rather than resizing the array in memory.
     """
+    # cv2 and matplotlib are imported here rather than at module scope. They
+    # are needed only for this training-fidelity round trip; the server draws
+    # the spectrogram from the raw array and should not have to install them.
+    import cv2
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
     path = tempfile.mktemp(suffix=".png")
     try:
         plt.imsave(path, img, origin="lower", dpi=300)

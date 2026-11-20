@@ -1,0 +1,49 @@
+.method { margin-top: 2.5rem; }
+
+.method h2 { font-size: clamp(1.4rem, 3.4vw, 2rem); margin-top: 0.3rem; }
+
+.method-list {
+  list-style: none;
+  margin: 1.5rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 1.5rem;
+}
+
+.method-list li {
+  display: grid;
+  grid-template-columns: 3.2rem 1fr;
+  gap: 1.1rem;
+  align-items: start;
+}
+
+.method-n {
+  font-family: var(--display);
+  font-size: 1.5rem;
+  color: var(--gold-deep);
+  line-height: 1;
+  padding-top: 0.15rem;
+  border-right: 1px solid var(--rule-soft);
+}
+
+.method-list h3 {
+  font-size: 1.04rem;
+  font-weight: 700;
+  margin-bottom: 0.3rem;
+}
+
+.method-list p { margin: 0; color: var(--text-2); font-size: 0.9rem; }
+
+.method-limit {
+  margin-top: 2rem;
+  padding: 1.2rem 1.3rem;
+  border-left: 2px solid var(--sindoor);
+  background: rgba(215, 38, 56, 0.07);
+}
+
+.method-limit h3 { font-size: 1.04rem; margin-bottom: 0.35rem; }
+.method-limit p { margin: 0; color: var(--text-2); font-size: 0.9rem; }
+
+@media (max-width: 560px) {
+  .method-list li { grid-template-columns: 2.4rem 1fr; gap: 0.8rem; }
+}

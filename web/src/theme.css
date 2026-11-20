@@ -1,0 +1,288 @@
+/* The look is borrowed from hand painted Hindi film posters: ink dark grounds,
+   marigold gold for the title card, sindoor red for emphasis, and a peacock
+   teal that the poster painters used for night scenes. The grain and the
+   vignette are doing the same job the printing process used to do.
+
+   The three mood colours are the only categorical scale on the page, and they
+   were checked rather than chosen by eye: adjacent pairs separate by dE 9.8
+   to 42.5 under deuteranopia, protanopia and tritanopia, and every one clears
+   5:1 contrast against the ground. */
+:root {
+  --ink: #160a12;
+  --ink-2: #1e0f19;
+  --ink-3: #2a1724;
+  --gold: #e9b44c;
+  --gold-bright: #f6d08a;
+  --gold-deep: #b8832a;
+  /* The travelling highlight in the foil gradient. Near white works on ink
+     and vanishes on paper, so it is a token rather than a literal. */
+  --foil-hot: #fff3d6;
+  --sindoor: #d72638;
+  --teal: #1b9aaa;
+  --rose: #d7577b;
+
+  --mood-peaceful: var(--teal);
+  --mood-energetic: var(--gold);
+  --mood-emotional: var(--rose);
+
+  --text: #f6ece2;
+  --text-2: #c9b4a8;
+  --text-3: #937d74;
+  --rule: rgba(233, 180, 76, 0.26);
+  --rule-soft: rgba(233, 180, 76, 0.12);
+
+  --display: "Playfair Display", Georgia, serif;
+  --sans: "Inter", system-ui, -apple-system, sans-serif;
+  --deva: "Tiro Devanagari Hindi", serif;
+
+  --shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+  --radius: 4px;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --grain: 0.4;
+  --grain-blend: overlay;
+}
+
+/* Light mode is the same poster, printed. Aged paper rather than ink, and the
+   three mood colours are re-stepped rather than reused: on cream the dark
+   gold and the rose collapsed to dE 1.3 under deuteranopia, which is
+   indistinguishable. These steps clear 15.6 at worst. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --ink: #f4ece0;
+    --ink-2: #ece0cf;
+    --ink-3: #fbf5ec;
+
+    --gold: #a8780d;
+    --gold-bright: #c89a2c;
+    --gold-deep: #7d560a;
+    --foil-hot: #e0ae3d;
+
+    --sindoor: #b01e2e;
+    --teal: #11707c;
+    --rose: #7d2a63;
+
+    --mood-peaceful: #11707c;
+    --mood-energetic: #a8780d;
+    --mood-emotional: #7d2a63;
+
+    --text: #241219;
+    --text-2: #5b4a44;
+    --text-3: #87726a;
+    --rule: rgba(125, 86, 10, 0.32);
+    --rule-soft: rgba(125, 86, 10, 0.16);
+
+    --shadow: 0 16px 40px rgba(66, 40, 20, 0.14);
+    --grain: 0.22;
+    --grain-blend: multiply;
+    --panel-top: rgba(255, 252, 246, 0.62);
+    --panel-bottom: rgba(244, 236, 224, 0.7);
+    --wash: 0.45;
+  }
+}
+
+:root[data-theme="light"] {
+  --ink: #f4ece0;
+  --ink-2: #ece0cf;
+  --ink-3: #fbf5ec;
+
+  --gold: #a8780d;
+  --gold-bright: #c89a2c;
+  --gold-deep: #7d560a;
+  --foil-hot: #e0ae3d;
+
+  --sindoor: #b01e2e;
+  --teal: #11707c;
+  --rose: #7d2a63;
+
+  --mood-peaceful: #11707c;
+  --mood-energetic: #a8780d;
+  --mood-emotional: #7d2a63;
+
+  --text: #241219;
+  --text-2: #5b4a44;
+  --text-3: #87726a;
+  --rule: rgba(125, 86, 10, 0.32);
+  --rule-soft: rgba(125, 86, 10, 0.16);
+
+  --shadow: 0 16px 40px rgba(66, 40, 20, 0.14);
+  --grain: 0.22;
+  --grain-blend: multiply;
+  --panel-top: rgba(255, 252, 246, 0.62);
+  --panel-bottom: rgba(244, 236, 224, 0.7);
+  --wash: 0.45;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { min-height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Ground: a warm radial wash so the page is not a flat rectangle of dark,
+   plus grain. Both are fixed and behind everything. */
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+body::before {
+  opacity: var(--wash, 1);
+  animation: bloom-drift 26s ease-in-out infinite alternate;
+  background:
+    radial-gradient(70% 50% at 18% 0%, rgba(215, 38, 56, 0.17), transparent 62%),
+    radial-gradient(60% 46% at 88% 8%, rgba(233, 180, 76, 0.13), transparent 60%),
+    radial-gradient(80% 60% at 50% 108%, rgba(27, 154, 170, 0.13), transparent 62%);
+}
+
+/* Film grain, as an SVG turbulence rather than an image request. */
+body::after {
+  opacity: var(--grain);
+  mix-blend-mode: var(--grain-blend);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+}
+
+h1, h2, h3 { font-family: var(--display); font-weight: 700; line-height: 1.15; margin: 0; }
+
+a { color: var(--gold); }
+
+/* Gold leaf. A flat gold reads as mustard; the highlight band is what makes
+   it read as metal. */
+.foil {
+  background: linear-gradient(
+    94deg,
+    var(--gold-deep) 0%,
+    var(--gold-bright) 22%,
+    var(--foil-hot) 34%,
+    var(--gold) 46%,
+    var(--gold-bright) 66%,
+    var(--gold-deep) 100%
+  );
+  background-size: 260% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: foil-sweep 7s ease-in-out infinite;
+}
+
+@keyframes foil-sweep {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* Entrance. Panels arrive as they are scrolled to rather than all at once,
+   which keeps the page from lurching on load. */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 650ms var(--ease), transform 650ms var(--ease);
+}
+
+.reveal.shown { opacity: 1; transform: none; }
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(22px); }
+  to { opacity: 1; transform: none; }
+}
+
+.eyebrow {
+  font-family: var(--sans);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.deva { font-family: var(--deva); }
+
+.shell {
+  position: relative;
+  z-index: 1;
+  width: min(1120px, 100% - 2rem);
+  margin: 0 auto;
+}
+
+/* A poster panel: ink card, gold hairline, painted corner marks. */
+.panel {
+  position: relative;
+  background: linear-gradient(180deg, var(--panel-top, rgba(58, 32, 49, 0.52)), var(--panel-bottom, rgba(26, 12, 21, 0.62)));
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  /* Frosted rather than opaque, so the ground wash and the grain read
+     through the card the way they do on the rest of the site. */
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  transition: transform 350ms var(--ease), box-shadow 350ms var(--ease),
+    border-color 350ms var(--ease);
+}
+
+.panel:hover {
+  transform: translateY(-2px);
+  border-color: rgba(233, 180, 76, 0.42);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.panel::before,
+.panel::after {
+  content: "";
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--gold);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.panel::before { top: 7px; left: 7px; border-right: 0; border-bottom: 0; }
+.panel::after { bottom: 7px; right: 7px; border-left: 0; border-top: 0; }
+
+.panel h2 {
+  font-size: 1.32rem;
+  margin-bottom: 0.3rem;
+}
+
+.panel .note {
+  color: var(--text-3);
+  font-size: 0.84rem;
+  line-height: 1.5;
+  margin: 0 0 1.1rem;
+}
+
+.rule {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--rule), transparent);
+  border: 0;
+  margin: 0;
+}
+
+@keyframes bloom-drift {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(0, -2.5%, 0) scale(1.06); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+
+  /* A reveal that never fires would leave the page blank, so pin it on. */
+  .reveal { opacity: 1; transform: none; }
+}

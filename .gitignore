@@ -78,3 +78,7 @@ logs/
 /tmp/
 /temp/
 /models/yamnet_embeddings.npz
+
+# Frontend build output and dependencies
+/web/node_modules/
+/web/dist/

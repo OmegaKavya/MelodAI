@@ -1,0 +1,27 @@
+.theme-toggle {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: var(--sans);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 0.4rem 0.85rem;
+  cursor: pointer;
+  z-index: 3;
+  transition: border-color 140ms ease, color 140ms ease;
+}
+
+.theme-toggle:hover { border-color: var(--gold); color: var(--gold-bright); }
+.theme-toggle:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.theme-toggle span { font-size: 0.85rem; line-height: 1; }
+
+@media (max-width: 560px) { .theme-toggle { top: 0.75rem; right: 0.75rem; } }

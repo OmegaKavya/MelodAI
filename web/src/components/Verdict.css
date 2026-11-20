@@ -1,0 +1,74 @@
+.verdict { text-align: center; padding: 2.25rem 1.5rem; }
+
+.verdict h2 { font-size: clamp(2rem, 6vw, 3.1rem); margin: 0.35rem 0 0.6rem; }
+
+.verdict-line { color: var(--text-2); margin: 0 auto; max-width: 48ch; }
+.verdict-line b { color: var(--text); font-weight: 600; }
+
+.verdict-stats {
+  display: flex;
+  justify-content: center;
+  gap: 3rem;
+  margin: 1.75rem 0 0;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--rule-soft);
+}
+
+.verdict-stats dt {
+  font-size: 0.66rem;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  font-weight: 600;
+}
+
+.verdict-stats dd {
+  margin: 0.25rem 0 0;
+  font-family: var(--display);
+  font-size: 1.55rem;
+  color: var(--text);
+}
+
+.verdict-note {
+  margin: 1.35rem auto 0;
+  max-width: 54ch;
+  font-size: 0.86rem;
+  color: var(--text-3);
+}
+
+@media (max-width: 560px) { .verdict-stats { gap: 1.75rem; } }
+
+/* The headline is the one place gold is allowed to glow. It breathes rather
+   than flashes, and it stops entirely under reduced motion. */
+.verdict {
+  position: relative;
+  overflow: hidden;
+}
+
+.verdict::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -35%;
+  width: 60%;
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+  background: radial-gradient(circle, rgba(233, 180, 76, 0.2), transparent 68%);
+  pointer-events: none;
+  animation: verdict-glow 5.5s ease-in-out infinite;
+}
+
+.verdict.high::after {
+  background: radial-gradient(circle, rgba(233, 180, 76, 0.34), transparent 68%);
+}
+
+@keyframes verdict-glow {
+  0%, 100% { opacity: 0.55; transform: translateX(-50%) scale(1); }
+  50% { opacity: 1; transform: translateX(-50%) scale(1.12); }
+}
+
+.verdict h2 { position: relative; }
+
+.verdict-stats dd {
+  text-shadow: 0 0 18px rgba(233, 180, 76, 0.2);
+}

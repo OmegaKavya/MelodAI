@@ -1,0 +1,114 @@
+.hero {
+  position: relative;
+  z-index: 1;
+  padding: 4.5rem 0 2.75rem;
+  text-align: center;
+}
+
+.hero-deva {
+  font-size: clamp(2.6rem, 9vw, 4.6rem);
+  line-height: 1;
+  margin: 0 0 0.35rem;
+  color: rgba(233, 180, 76, 0.16);
+  letter-spacing: 0.04em;
+  user-select: none;
+}
+
+/* The rule under the Devanagari: two tapering gold lines around a diamond,
+   which is the ornament those posters used between title and credits. */
+.hero-rule {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 1.1rem;
+}
+
+.hero-rule span {
+  display: block;
+  width: min(140px, 22vw);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold));
+}
+
+.hero-rule span:last-child { background: linear-gradient(90deg, var(--gold), transparent); }
+
+.hero-rule i {
+  width: 7px;
+  height: 7px;
+  background: var(--gold);
+  transform: rotate(45deg);
+}
+
+.hero h1 {
+  font-size: clamp(3rem, 11vw, 6.2rem);
+  letter-spacing: 0.01em;
+  margin: 0;
+}
+
+.hero-tag {
+  max-width: 50ch;
+  margin: 1rem auto 0;
+  color: var(--text-2);
+  font-size: 1.04rem;
+}
+
+.hero-stats {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 2.75rem;
+  margin: 2.5rem 0 0;
+}
+
+.hero-stats div { text-align: center; }
+
+.hero-stats dt {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 0.3rem;
+}
+
+.hero-stats dd {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 2.1rem;
+  font-weight: 700;
+  color: var(--gold);
+  line-height: 1;
+}
+
+.hero-stats dd span {
+  font-size: 1.1rem;
+  color: var(--text-3);
+  font-weight: 500;
+}
+
+@media (max-width: 600px) {
+  .hero { padding-top: 3rem; }
+  .hero-stats { gap: 1.75rem; }
+}
+
+/* The title card assembles rather than appearing. Staggered because the
+   Devanagari, the rule and the name read as one object arriving. */
+.hero-deva,
+.hero-rule,
+.hero h1,
+.hero-tag,
+.hero-stats {
+  animation: rise 800ms var(--ease) both;
+}
+
+.hero-rule { animation-delay: 90ms; }
+.hero h1 { animation-delay: 170ms; }
+.hero-tag { animation-delay: 260ms; }
+.hero-stats { animation-delay: 350ms; }
+
+.hero-rule span { transform-origin: left center; }
+
+.hero-stats dd {
+  text-shadow: 0 0 22px rgba(233, 180, 76, 0.28);
+}

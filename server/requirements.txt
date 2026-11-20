@@ -1,0 +1,14 @@
+# Serving only. No TensorFlow: the energy head is four matrix multiplies in
+# NumPy and YAMNet runs from a vendored .tflite build, which together removed
+# the numpy<2 / protobuf<5 / Python<=3.12 constraint knot the training stack
+# imposed. Verified on Python 3.12 and 3.13.
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-multipart>=0.0.9
+
+numpy>=1.26
+ai-edge-litert>=1.0
+
+# Decoding and the spectrogram panel.
+librosa>=0.10,<1.0
+soundfile>=0.12
