@@ -1,5 +1,6 @@
 import React, { useCallback, useRef, useState } from "react";
 import Panel from "./Panel.jsx";
+import Progress from "./Progress.jsx";
 import "./Upload.css";
 
 const ACCEPT = ".mp3,.wav,.flac,.m4a,audio/*";
@@ -70,7 +71,7 @@ export default function Upload({ onFile, status, error, filename }) {
         </div>
       </div>
 
-      {working && <div className="progress" role="status" aria-label="Analysing" />}
+      {working && <Progress />}
 
       {status === "failed" && (
         <p className="upload-error" role="alert">{error}</p>

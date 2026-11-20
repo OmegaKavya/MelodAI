@@ -1,0 +1,79 @@
+.tl-overview { margin-bottom: 1.1rem; }
+
+.tl-label,
+.tl-hint {
+  display: block;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.tl-hint { margin-top: 0.3rem; }
+
+.tl-over-svg { width: 100%; height: auto; display: block; margin-top: 0.35rem; }
+
+.tl-detail {
+  position: relative;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  overflow: hidden;
+  cursor: crosshair;
+  background: #000;
+}
+
+.tl-canvas {
+  display: block;
+  width: 100%;
+  height: clamp(220px, 32vw, 320px);
+}
+
+.tl-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.tl-axis {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.72);
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.55));
+  pointer-events: none;
+}
+
+.tl-readout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.4rem;
+  margin-top: 0.9rem;
+  font-size: 0.82rem;
+  color: var(--text-3);
+  min-height: 1.5em;
+}
+
+.tl-readout em {
+  font-style: normal;
+  font-family: var(--display);
+  font-size: 0.98rem;
+  color: var(--text);
+}
+
+.tl-ch::before {
+  content: "";
+  display: inline-block;
+  width: 9px; height: 9px;
+  border-radius: 2px;
+  margin-right: 0.4rem;
+}
+
+.tl-ch.r::before { background: var(--sindoor); }
+.tl-ch.g::before { background: #3fa96b; }
+.tl-ch.b::before { background: var(--teal); }
+
+.tl-idle { color: var(--text-3); }

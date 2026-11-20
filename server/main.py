@@ -47,7 +47,7 @@ ALLOWED = {".mp3", ".wav", ".flac", ".m4a", ".ogg", ".aac"}
 # The spectrogram is sent at the size it will be drawn at. Full resolution is
 # 1723 columns for 20 seconds, which no screen resolves and no one should pay
 # to download.
-SPECTROGRAM_WIDTH = 512
+SPECTROGRAM_WIDTH = 1024
 SPECTROGRAM_HEIGHT = 128
 
 # The spectrogram panel is drawn from one segment, not the whole upload.

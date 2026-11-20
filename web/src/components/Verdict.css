@@ -1,74 +1,118 @@
-.verdict { text-align: center; padding: 2.25rem 1.5rem; }
+.verdict { position: relative; overflow: hidden; padding: 2.1rem 1.8rem; }
 
-.verdict h2 { font-size: clamp(2rem, 6vw, 3.1rem); margin: 0.35rem 0 0.6rem; }
+.verdict::after {
+  content: "";
+  position: absolute;
+  left: 12%;
+  top: -45%;
+  width: 46%;
+  aspect-ratio: 1;
+  background: radial-gradient(circle, rgba(233, 180, 76, 0.2), transparent 68%);
+  pointer-events: none;
+  animation: verdict-glow 5.5s ease-in-out infinite;
+}
 
-.verdict-line { color: var(--text-2); margin: 0 auto; max-width: 48ch; }
+.verdict.high::after { background: radial-gradient(circle, rgba(233, 180, 76, 0.36), transparent 68%); }
+
+@keyframes verdict-glow {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.12); }
+}
+
+.verdict-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 2.25rem;
+  align-items: center;
+}
+
+.dial { position: relative; width: 200px; }
+.dial svg { width: 100%; height: auto; transform: rotate(-90deg); }
+
+.dial-track {
+  fill: none;
+  stroke: var(--rule-soft);
+  stroke-width: 12;
+}
+
+.dial-value {
+  fill: none;
+  stroke: var(--teal);
+  stroke-width: 12;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 10px rgba(27, 154, 170, 0.45));
+  transition: stroke 400ms var(--ease);
+}
+
+.dial-value.high {
+  stroke: var(--gold);
+  filter: drop-shadow(0 0 14px rgba(233, 180, 76, 0.55));
+}
+
+.dial-boundary { stroke: var(--sindoor); stroke-width: 3; opacity: 0.9; }
+
+.dial-centre {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  font-family: var(--display);
+  pointer-events: none;
+}
+
+.dial-centre strong { font-size: 2.9rem; font-weight: 700; color: var(--text); line-height: 1; }
+.dial-centre span { font-size: 1.1rem; color: var(--text-3); margin-top: 0.5rem; }
+
+.verdict-body h2 { font-size: clamp(1.9rem, 4.6vw, 3rem); margin: 0.2rem 0 0.5rem; }
+
+.verdict-line { color: var(--text-2); margin: 0; font-size: 0.95rem; }
 .verdict-line b { color: var(--text); font-weight: 600; }
 
 .verdict-stats {
   display: flex;
-  justify-content: center;
-  gap: 3rem;
-  margin: 1.75rem 0 0;
-  padding-top: 1.5rem;
+  gap: 2.5rem;
+  margin: 1.4rem 0 0;
+  padding-top: 1.2rem;
   border-top: 1px solid var(--rule-soft);
 }
 
 .verdict-stats dt {
-  font-size: 0.66rem;
-  letter-spacing: 0.17em;
+  font-size: 0.64rem;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--text-3);
   font-weight: 600;
 }
 
 .verdict-stats dd {
-  margin: 0.25rem 0 0;
+  margin: 0.2rem 0 0;
   font-family: var(--display);
-  font-size: 1.55rem;
+  font-size: 1.7rem;
   color: var(--text);
-}
-
-.verdict-note {
-  margin: 1.35rem auto 0;
-  max-width: 54ch;
-  font-size: 0.86rem;
-  color: var(--text-3);
-}
-
-@media (max-width: 560px) { .verdict-stats { gap: 1.75rem; } }
-
-/* The headline is the one place gold is allowed to glow. It breathes rather
-   than flashes, and it stops entirely under reduced motion. */
-.verdict {
-  position: relative;
-  overflow: hidden;
-}
-
-.verdict::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: -35%;
-  width: 60%;
-  aspect-ratio: 1;
-  transform: translateX(-50%);
-  background: radial-gradient(circle, rgba(233, 180, 76, 0.2), transparent 68%);
-  pointer-events: none;
-  animation: verdict-glow 5.5s ease-in-out infinite;
-}
-
-.verdict.high::after {
-  background: radial-gradient(circle, rgba(233, 180, 76, 0.34), transparent 68%);
-}
-
-@keyframes verdict-glow {
-  0%, 100% { opacity: 0.55; transform: translateX(-50%) scale(1); }
-  50% { opacity: 1; transform: translateX(-50%) scale(1.12); }
-}
-
-.verdict h2 { position: relative; }
-
-.verdict-stats dd {
   text-shadow: 0 0 18px rgba(233, 180, 76, 0.2);
+}
+
+.verdict-stats dd span { font-size: 0.9rem; color: var(--text-3); }
+
+.verdict-note { margin: 1.1rem 0 0; font-size: 0.85rem; color: var(--text-3); max-width: 58ch; }
+
+.verdict-warn {
+  position: relative;
+  margin: 1.5rem 0 0;
+  padding: 0.8rem 1rem;
+  border-left: 2px solid var(--sindoor);
+  background: rgba(215, 38, 56, 0.1);
+  font-size: 0.86rem;
+  color: var(--text-2);
+}
+
+.verdict-warn b { color: var(--text); }
+
+@media (max-width: 760px) {
+  .verdict-grid { grid-template-columns: 1fr; justify-items: center; text-align: center; gap: 1.5rem; }
+  .verdict-stats { justify-content: center; gap: 1.75rem; }
+  .verdict-note { margin-left: auto; margin-right: auto; }
 }
