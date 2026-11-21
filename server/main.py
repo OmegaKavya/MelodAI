@@ -224,8 +224,20 @@ def _rate_limit(request: Request):
     fifteen lines. Keyed on the forwarded client address, since the service
     sits behind Render's proxy and request.client.host is the proxy.
     """
-    forwarded = request.headers.get("x-forwarded-for", "")
-    client = forwarded.split(",")[0].strip() if forwarded else (
+    # Take the RIGHTMOST entry, not the leftmost.
+    #
+    # X-Forwarded-For is a list the proxies append to, so the leftmost value is
+    # whatever the caller sent and is trivially forged: a script sending a
+    # random address per request evades the limit entirely, and one sending a
+    # real address can exhaust someone else's allowance on purpose. The last
+    # entry is the one Render's proxy added itself, which is the only part of
+    # the header the client cannot write.
+    #
+    # If the service is ever put behind a second proxy, this needs to skip that
+    # many entries from the right instead.
+    forwarded = [part.strip() for part in
+                 request.headers.get("x-forwarded-for", "").split(",") if part.strip()]
+    client = forwarded[-1] if forwarded else (
         request.client.host if request.client else "unknown")
 
     now = time.monotonic()
