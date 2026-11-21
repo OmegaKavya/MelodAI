@@ -14,10 +14,13 @@ import ctypes.util
 import gc
 import io
 import os
+import threading
+import time
+from collections import deque
 
 import librosa
 import numpy as np
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -38,6 +41,17 @@ SPECTROGRAM_RATE = 22050
 # numba rather than the audio, so there is nothing to win by cutting further.
 MAX_SECONDS = 90
 MAX_BYTES = 25 * 1024 * 1024
+# Read granularity for the upload. Small enough that an oversized body is
+# refused long before it can matter, large enough not to make syscalls the
+# bottleneck.
+CHUNK_BYTES = 64 * 1024
+
+# One analysis is several seconds of CPU on a fractional instance, so an
+# unthrottled endpoint is a denial of service with no exploit required. An
+# in-memory window is enough here: this runs as a single process, and a limiter
+# that forgets everything on restart is the correct trade for a free tier.
+RATE_MAX = 10
+RATE_WINDOW = 60.0
 
 # Checked before decoding. The decoder would reject most of these anyway, but
 # it reads the whole file first, and the message it gives is about codecs
@@ -198,8 +212,45 @@ def corpus():
     return {"songs": runtime.corpus()}
 
 
+_rate_hits = {}
+_rate_lock = threading.Lock()
+
+
+def _rate_limit(request: Request):
+    """Per-IP sliding window over the analyse endpoint.
+
+    Deliberately not a library. slowapi would be another dependency on an
+    install that was cut to 441 MB on purpose, and the whole limiter is
+    fifteen lines. Keyed on the forwarded client address, since the service
+    sits behind Render's proxy and request.client.host is the proxy.
+    """
+    forwarded = request.headers.get("x-forwarded-for", "")
+    client = forwarded.split(",")[0].strip() if forwarded else (
+        request.client.host if request.client else "unknown")
+
+    now = time.monotonic()
+    with _rate_lock:
+        seen = _rate_hits.setdefault(client, deque())
+        while seen and now - seen[0] > RATE_WINDOW:
+            seen.popleft()
+        if len(seen) >= RATE_MAX:
+            retry = int(RATE_WINDOW - (now - seen[0])) + 1
+            raise HTTPException(
+                status_code=429,
+                detail=f"That is {RATE_MAX} analyses in a minute. "
+                       f"Try again in {retry}s.",
+                headers={"Retry-After": str(retry)},
+            )
+        seen.append(now)
+
+        # Without this the dict grows one entry per distinct address, forever.
+        if len(_rate_hits) > 2048:
+            for key in [k for k, v in _rate_hits.items() if not v or now - v[-1] > RATE_WINDOW]:
+                _rate_hits.pop(key, None)
+
+
 @app.post("/api/analyse")
-def analyse(file: UploadFile = File(...)):
+def analyse(request: Request, file: UploadFile = File(...)):
     """Deliberately a sync def.
 
     Decoding, YAMNet and the spectrogram are blocking CPU work. Declared
@@ -209,15 +260,31 @@ def analyse(file: UploadFile = File(...)):
     restart, which is exactly what it did. As a sync def, FastAPI runs this
     in a worker thread and the loop stays free to answer.
     """
-    data = file.file.read()
+    _rate_limit(request)
+
+    # Read in chunks and stop at the cap rather than buffering the whole body
+    # and measuring it afterwards. A single 1 GB upload against a 512 MB
+    # instance is otherwise an out-of-memory kill, which takes the service down
+    # for everyone and costs the attacker one request.
+    chunks = []
+    total = 0
+    while True:
+        chunk = file.file.read(CHUNK_BYTES)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > MAX_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail="That file is over the 25 MB limit, which is a full "
+                       "length song at a normal bitrate.",
+            )
+        chunks.append(chunk)
+
+    data = b"".join(chunks)
+    del chunks
     if not data:
         raise HTTPException(status_code=400, detail="That file was empty.")
-    if len(data) > MAX_BYTES:
-        raise HTTPException(
-            status_code=413,
-            detail=f"That file is {len(data) / 1e6:.0f} MB. The limit is 25 MB, "
-                   "which is a full length song at a normal bitrate.",
-        )
 
     suffix = os.path.splitext(file.filename or "")[1].lower()
     if suffix and suffix not in ALLOWED:
