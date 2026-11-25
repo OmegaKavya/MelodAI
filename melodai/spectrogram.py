@@ -117,7 +117,10 @@ def to_model_input(img):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    path = tempfile.mktemp(suffix=".png")
+    # mkstemp, not mktemp: mktemp returns a name without creating the file,
+    # so another process can create it first.
+    handle, path = tempfile.mkstemp(suffix=".png")
+    os.close(handle)
     try:
         plt.imsave(path, img, origin="lower", dpi=300)
         # cv2 reads BGR and writes BGR, so a read/resize/write round trip is

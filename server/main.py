@@ -214,6 +214,18 @@ def corpus():
 
 _rate_hits = {}
 _rate_lock = threading.Lock()
+# Hard ceiling on tracked addresses. Pruning only drops entries older than the
+# window, so a burst from more distinct addresses than this inside one window
+# would otherwise grow the map without bound.
+RATE_MAX_TRACKED = 4096
+
+# One analysis at a time. FastAPI runs a sync endpoint on a 40-thread pool, and
+# one analysis already plateaus near 440 MB on a 512 MB instance, so two
+# overlapping uploads were enough to get the process killed for everyone.
+# Taken before the upload is read, so a waiting request holds no audio in
+# memory (the multipart body is spooled to disk by then).
+_analysis_slot = threading.BoundedSemaphore(1)
+ANALYSIS_WAIT_SECONDS = 30
 
 
 def _rate_limit(request: Request):
@@ -259,6 +271,12 @@ def _rate_limit(request: Request):
         if len(_rate_hits) > 2048:
             for key in [k for k, v in _rate_hits.items() if not v or now - v[-1] > RATE_WINDOW]:
                 _rate_hits.pop(key, None)
+        if len(_rate_hits) > RATE_MAX_TRACKED:
+            # Still over after pruning: evict the least recently seen.
+            by_age = sorted(_rate_hits, key=lambda k: _rate_hits[k][-1] if _rate_hits[k] else 0)
+            for key in by_age[:len(_rate_hits) - RATE_MAX_TRACKED]:
+                if key != client:
+                    _rate_hits.pop(key, None)
 
 
 @app.post("/api/analyse")
@@ -274,6 +292,31 @@ def analyse(request: Request, file: UploadFile = File(...)):
     """
     _rate_limit(request)
 
+    # Checked before a byte of the body is read. It used to be checked after
+    # buffering up to 25 MB, and skipped entirely when there was no extension,
+    # so an extensionless upload went straight to the audio decoders.
+    suffix = os.path.splitext(file.filename or "")[1].lower()
+    if suffix not in ALLOWED:
+        raise HTTPException(
+            status_code=415,
+            detail=f"{suffix or 'A file with no extension'} is not an audio "
+                   "format this reads. MP3, WAV, FLAC, M4A, OGG and AAC all work.",
+        )
+
+    if not _analysis_slot.acquire(timeout=ANALYSIS_WAIT_SECONDS):
+        raise HTTPException(
+            status_code=503,
+            detail="Someone else's song is being analysed. Try again in a "
+                   "few seconds.",
+            headers={"Retry-After": "10"},
+        )
+    try:
+        return _analyse_upload(file)
+    finally:
+        _analysis_slot.release()
+
+
+def _analyse_upload(file):
     # Read in chunks and stop at the cap rather than buffering the whole body
     # and measuring it afterwards. A single 1 GB upload against a 512 MB
     # instance is otherwise an out-of-memory kill, which takes the service down
@@ -297,14 +340,6 @@ def analyse(request: Request, file: UploadFile = File(...)):
     del chunks
     if not data:
         raise HTTPException(status_code=400, detail="That file was empty.")
-
-    suffix = os.path.splitext(file.filename or "")[1].lower()
-    if suffix and suffix not in ALLOWED:
-        raise HTTPException(
-            status_code=415,
-            detail=f"{suffix} is not an audio format this reads. "
-                   "MP3, WAV, FLAC, M4A, OGG and AAC all work.",
-        )
 
     y, y16 = _decode(data)
     duration = float(len(y) / SPECTROGRAM_RATE)

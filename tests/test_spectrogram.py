@@ -51,7 +51,8 @@ def test_matches_the_training_script_exactly():
 
     y = tone(percussive=True)
 
-    reference_png = tempfile.mktemp(suffix=".png")
+    handle, reference_png = tempfile.mkstemp(suffix=".png")
+    os.close(handle)
     assert create_hybrid_spectrogram(y, SR, reference_png)
     reference = cv2.resize(cv2.imread(reference_png), TARGET_SIZE, interpolation=cv2.INTER_CUBIC)
     reference = cv2.cvtColor(reference, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0

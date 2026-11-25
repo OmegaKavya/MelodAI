@@ -83,3 +83,6 @@ logs/
 /web/node_modules/
 /web/dist/
 web/.env.local
+
+# Firebase CLI deploy cache
+.firebase/
