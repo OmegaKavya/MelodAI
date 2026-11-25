@@ -18,11 +18,15 @@ const PAD = { left: 0, right: 0 };
 // song costs more memory than the host has. So the overview strip carries the
 // whole track and marks the window, and the detail view below shows that
 // window with the curve drawn over the image it was derived from.
-export default function Timeline({ energy, duration, spectrogram, window: win }) {
+export default function Timeline({ energy, duration, spectrogram, window: win, audioUrl }) {
   const canvasRef = useRef(null);
   const detailRef = useRef(null);
   const pixelsRef = useRef(null);
   const [at, setAt] = useState(null);
+  const audioRef = useRef(null);
+  const overviewRef = useRef(null);
+  // Seconds into the track while the audio plays, else null.
+  const [playhead, setPlayhead] = useState(null);
 
   const curve = energy.curve;
   const windowSeconds = Math.min(win || duration, duration);
@@ -56,6 +60,53 @@ export default function Timeline({ energy, duration, spectrogram, window: win })
       .map((v, i) => `${i === 0 ? "M" : "L"}${xs(i, values.length).toFixed(1)},${ys(v, h).toFixed(1)}`)
       .join("");
 
+  // Follow the audio at frame rate rather than on `timeupdate`, which fires
+  // about four times a second and makes the cursor jump.
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return undefined;
+    let frame = 0;
+    const tick = () => {
+      setPlayhead(audio.currentTime);
+      if (!audio.paused && !audio.ended) frame = requestAnimationFrame(tick);
+    };
+    const start = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(tick); };
+    const stop = () => { cancelAnimationFrame(frame); setPlayhead(audio.currentTime || null); };
+    audio.addEventListener("play", start);
+    audio.addEventListener("pause", stop);
+    audio.addEventListener("ended", stop);
+    audio.addEventListener("seeked", tick);
+    return () => {
+      cancelAnimationFrame(frame);
+      audio.removeEventListener("play", start);
+      audio.removeEventListener("pause", stop);
+      audio.removeEventListener("ended", stop);
+      audio.removeEventListener("seeked", tick);
+    };
+  }, [audioUrl]);
+
+  useEffect(() => { setPlayhead(null); }, [audioUrl]);
+
+  // Clicking either view moves the audio there, when there is audio.
+  const seek = (seconds) => {
+    const audio = audioRef.current;
+    if (!audio || !Number.isFinite(seconds)) return;
+    audio.currentTime = Math.max(0, seconds);
+  };
+  const seekOverview = (event) => {
+    const box = overviewRef.current?.getBoundingClientRect();
+    if (box) seek(((event.clientX - box.left) / box.width) * duration);
+  };
+  const seekDetail = (event) => {
+    const box = detailRef.current?.getBoundingClientRect();
+    if (box) seek(((event.clientX - box.left) / box.width) * windowSeconds);
+  };
+
+  // Where the playhead falls on each view, or null when it is off that view.
+  const headInTrack = playhead !== null && playhead <= duration ? playhead / duration : null;
+  const headInDetail = playhead !== null && playhead <= windowSeconds ? playhead / windowSeconds : null;
+  const pastAnalysis = playhead !== null && playhead > duration;
+
   const scrub = (event) => {
     const node = detailRef.current;
     if (!node) return;
@@ -64,8 +115,12 @@ export default function Timeline({ energy, duration, spectrogram, window: win })
     setAt(ratio);
   };
 
+  // Hovering reads a moment; otherwise the readout follows the playhead.
+  const reading = at !== null ? at : headInDetail;
+
   const probe = useMemo(() => {
-    if (at === null) return null;
+    if (reading === null) return null;
+    const at = reading;
     const store = pixelsRef.current;
     const i = Math.min(detail.length - 1, Math.round(at * (detail.length - 1)));
     const out = {
@@ -83,7 +138,7 @@ export default function Timeline({ energy, duration, spectrogram, window: win })
       [out.r, out.g, out.b] = col;
     }
     return out;
-  }, [at, detail, windowSeconds]);
+  }, [reading, detail, windowSeconds]);
 
   return (
     <Panel className="timeline" aria-labelledby="timeline-heading">
@@ -94,15 +149,30 @@ export default function Timeline({ energy, duration, spectrogram, window: win })
         line sits directly under the moment that caused it.
       </p>
 
+      {audioUrl && (
+        <div className="tl-player">
+          <audio ref={audioRef} src={audioUrl} controls preload="metadata" />
+          <span className="tl-hint">
+            Play it and watch the cursor. Click the image or the strip to jump.
+            {pastAnalysis && ` Past ${Math.round(duration)}s: the model was not shown this part.`}
+          </span>
+        </div>
+      )}
+
       <div className="tl-overview">
         <span className="tl-label">Whole track, {Math.round(duration)}s</span>
-        <svg viewBox={`0 0 ${W} ${OVERVIEW_H}`} className="tl-over-svg" role="img"
+        <svg viewBox={`0 0 ${W} ${OVERVIEW_H}`} className={`tl-over-svg${audioUrl ? " is-seekable" : ""}`} role="img"
+          ref={overviewRef} onClick={audioUrl ? seekOverview : undefined}
           aria-label={`Energy across the whole track, mean ${Math.round(energy.score * 100)} percent.`}>
           <line x1={PAD.left} x2={W - PAD.right} y1={ys(0.5, OVERVIEW_H)} y2={ys(0.5, OVERVIEW_H)}
             stroke="var(--sindoor)" strokeDasharray="3 3" strokeWidth="1" opacity="0.55" />
           <rect x={PAD.left} y="4" width={(shown / curve.length) * plotW} height={OVERVIEW_H - 8}
             fill="var(--gold)" opacity="0.13" />
           <path d={line(curve, OVERVIEW_H)} fill="none" stroke="var(--gold)" strokeWidth="1.5" opacity="0.85" />
+          {headInTrack !== null && (
+            <line x1={PAD.left + headInTrack * plotW} x2={PAD.left + headInTrack * plotW}
+              y1="0" y2={OVERVIEW_H} stroke="var(--text)" strokeWidth="1.5" opacity="0.9" />
+          )}
         </svg>
         <span className="tl-hint">Shaded: the {Math.round(windowSeconds)}s drawn below</span>
       </div>
@@ -112,6 +182,7 @@ export default function Timeline({ energy, duration, spectrogram, window: win })
         ref={detailRef}
         onMouseMove={scrub}
         onMouseLeave={() => setAt(null)}
+        onClick={audioUrl ? seekDetail : undefined}
       >
         <canvas ref={canvasRef} className="tl-canvas" aria-hidden="true" />
 
@@ -127,6 +198,12 @@ export default function Timeline({ energy, duration, spectrogram, window: win })
             vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
           <line x1={PAD.left} x2={W - PAD.right} y1={ys(0.5, DETAIL_H)} y2={ys(0.5, DETAIL_H)}
             stroke="var(--sindoor)" strokeDasharray="5 5" strokeWidth="1.5" vectorEffect="non-scaling-stroke" opacity="0.8" />
+          {headInDetail !== null && (
+            <line
+              x1={PAD.left + headInDetail * plotW} x2={PAD.left + headInDetail * plotW} y1="0" y2={DETAIL_H}
+              stroke="var(--gold-bright)" strokeWidth="2" vectorEffect="non-scaling-stroke"
+            />
+          )}
           {at !== null && (
             <line
               x1={PAD.left + at * plotW} x2={PAD.left + at * plotW} y1="0" y2={DETAIL_H}

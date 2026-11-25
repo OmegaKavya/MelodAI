@@ -77,3 +77,7 @@
 .tl-ch.b::before { background: var(--teal); }
 
 .tl-idle { color: var(--text-3); }
+
+.tl-player { margin-bottom: 1.1rem; }
+.tl-player audio { width: 100%; display: block; margin-bottom: 0.35rem; }
+.tl-over-svg.is-seekable { cursor: pointer; }

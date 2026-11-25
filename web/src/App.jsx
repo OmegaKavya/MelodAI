@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { analyse, corpus as bakedCorpus } from "./api";
 import Hero from "./components/Hero.jsx";
 import Upload from "./components/Upload.jsx";
@@ -18,6 +18,11 @@ export default function App() {
   const [result, setResult] = useState(null);
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
+  // The uploaded file, playable in place. It never leaves the browser again:
+  // the timeline plays it locally so the cursor can be watched moving across
+  // the image the model was shown. Revoked when replaced.
+  const [audioUrl, setAudioUrl] = useState(null);
+  useEffect(() => () => { if (audioUrl) URL.revokeObjectURL(audioUrl); }, [audioUrl]);
 
   // Loaded only when asked for, so the 327 kB of precomputed result is not
   // in the path of every visitor who does intend to upload something.
@@ -26,6 +31,7 @@ export default function App() {
     setError("");
     try {
       const mod = await import("./sample.json");
+      setAudioUrl(null);
       setResult(mod.default);
       setStatus("done");
     } catch {
@@ -39,6 +45,7 @@ export default function App() {
     setError("");
     try {
       const data = await analyse(file);
+      setAudioUrl(URL.createObjectURL(file));
       setResult(data);
       setStatus("done");
     } catch (failure) {
@@ -73,6 +80,7 @@ export default function App() {
               duration={result.duration}
               spectrogram={result.spectrogram}
               window={result.spectrogram_seconds}
+              audioUrl={audioUrl}
             />
             <div className="two-up">
               <Hears hears={result.hears} />
