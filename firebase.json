@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "melodai",
     "public": "web/dist",
     "ignore": [
       "firebase.json",
