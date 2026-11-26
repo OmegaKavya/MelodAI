@@ -1,11 +1,8 @@
 import React, { useCallback, useRef, useState } from "react";
 import Panel from "./Panel.jsx";
 import Progress from "./Progress.jsx";
+import { ACCEPT, UPLOAD_PROMPT } from "../formats.js";
 import "./Upload.css";
-
-// What the server can decode, and nothing broader: "audio/*" let the picker
-// offer M4A and AAC, which are refused on arrival.
-const ACCEPT = ".mp3,.wav,.flac,.ogg,audio/mpeg,audio/wav,audio/flac,audio/ogg";
 
 // Styled as a cinema ticket because that is the one object in this visual
 // language that means "put this in and something happens".
@@ -51,7 +48,7 @@ export default function Upload({ onFile, onSample, status, error, filename, isSa
               ? "Running YAMNet over every 0.96 second window."
               : filename && status === "done"
               ? filename
-              : "Drop an MP3, WAV or FLAC, or choose a file."}
+              : UPLOAD_PROMPT}
             {isSample && status === "done" && (
               <em className="ticket-tag">prepared example</em>
             )}

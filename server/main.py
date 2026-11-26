@@ -252,6 +252,10 @@ _admission_lock = threading.Lock()
 # the first event loop that waits on it. One loop serves production, but the
 # test client runs each request on a fresh one.
 ANALYSIS_POLL_SECONDS = 0.1
+# One ticket per waiting upload, in arrival order. Only the head may take the
+# slot: when every waiter polled for it, whichever woke first after a release
+# won, and an early upload could run out its deadline behind later ones.
+_waiting = deque()
 
 
 def _busy():
@@ -292,11 +296,45 @@ def _leave():
 
 
 async def _take_slot():
+    ticket = object()
+    with _admission_lock:
+        _waiting.append(ticket)
     deadline = time.monotonic() + ANALYSIS_WAIT_SECONDS
-    while not _analysis_slot.acquire(blocking=False):
-        if time.monotonic() >= deadline:
-            raise _busy()
-        await asyncio.sleep(ANALYSIS_POLL_SECONDS)
+    try:
+        while True:
+            with _admission_lock:
+                if _waiting[0] is ticket and _analysis_slot.acquire(blocking=False):
+                    _waiting.popleft()
+                    return
+            if time.monotonic() >= deadline:
+                raise _busy()
+            await asyncio.sleep(ANALYSIS_POLL_SECONDS)
+    except BaseException:
+        # A waiter that gives up, times out or is cancelled must leave the
+        # line, or everyone behind it waits for a head that never moves.
+        with _admission_lock:
+            _waiting.remove(ticket)
+        raise
+
+
+async def _until_done(fn, *args):
+    """Run fn in a worker thread and return only once that thread has ended.
+
+    A thread cannot be stopped, and run_in_threadpool returns as soon as its
+    task is cancelled, so a cancelled request would otherwise free the slot
+    and delete its upload while the analysis was still running on both.
+    Cancellation is held back until the thread finishes, then re-raised.
+    """
+    work = asyncio.ensure_future(run_in_threadpool(fn, *args))
+    cancelled = None
+    while not work.done():
+        try:
+            await asyncio.wait({work})
+        except asyncio.CancelledError as error:
+            cancelled = error
+    if cancelled is not None:
+        raise cancelled
+    return work.result()
 
 
 def _capped(request: Request):
@@ -414,15 +452,20 @@ async def analyse(request: Request):
                        f"format this reads. {FORMATS} work.",
             )
 
+        # Before admission, so a file the analysis would refuse does not wait
+        # for the slot first.
+        if file.size is not None and file.size > MAX_BYTES:
+            raise _too_large()
+
         if not _admit():
             raise _busy()
         try:
             await _take_slot()
             try:
-                # If this request is cancelled, run_in_threadpool still waits
-                # for the thread to finish, so the slot is never released
-                # while an analysis is running.
-                return await run_in_threadpool(_analyse_upload, file)
+                # Waits out the thread even if this request is cancelled, so
+                # the slot and the spooled upload are released only once the
+                # analysis has stopped using them.
+                return await _until_done(_analyse_upload, file)
             finally:
                 _analysis_slot.release()
         finally:

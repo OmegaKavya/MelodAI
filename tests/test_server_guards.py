@@ -6,6 +6,7 @@ for the analysis.
 """
 import asyncio
 import threading
+import time
 
 import anyio
 import httpx
@@ -52,6 +53,119 @@ def test_a_second_concurrent_analysis_waits_then_gets_503(monkeypatch):
         main._analysis_slot.release()
     assert res.status_code == 503
     assert res.headers.get("retry-after")
+
+
+def test_a_file_over_the_limit_is_refused_before_it_waits_for_the_slot(monkeypatch):
+    # Between the file cap and the body cap a file fits in the request, and
+    # used to wait its turn for the slot only to be refused once it had it.
+    monkeypatch.setattr(main, "MAX_BYTES", 1024)
+    monkeypatch.setattr(main, "ANALYSIS_WAIT_SECONDS", 0.05)
+    assert main._analysis_slot.acquire(timeout=1)
+    try:
+        res = upload("song.mp3", b"x" * 1025)
+    finally:
+        main._analysis_slot.release()
+    assert res.status_code == 413
+
+
+def post_from(http, name, i):
+    return asyncio.create_task(http.post(
+        "/api/analyse", files={"file": (name, b"x")},
+        headers={"x-forwarded-for": f"10.2.0.{i}"}))
+
+
+def test_waiting_uploads_are_served_in_arrival_order(monkeypatch):
+    # Every waiter used to poll for the slot, and whichever woke first after a
+    # release took it. Here the later upload arrives just as the slot frees,
+    # while the earlier one is still asleep between polls.
+    monkeypatch.setattr(main, "ANALYSIS_POLL_SECONDS", 0.5)
+    served = []
+
+    def stand_in(file):
+        served.append(file.filename)
+        return {"ok": True}
+
+    monkeypatch.setattr(main, "_analyse_upload", stand_in)
+
+    async def scenario():
+        transport = httpx.ASGITransport(app=main.app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as http:
+            assert main._analysis_slot.acquire(timeout=1)
+            first = post_from(http, "first.mp3", 1)
+            await asyncio.sleep(0.2)
+            main._analysis_slot.release()
+            second = post_from(http, "second.mp3", 2)
+            return await asyncio.gather(first, second)
+
+    results = asyncio.run(scenario())
+
+    assert [r.status_code for r in results] == [200, 200]
+    assert served == ["first.mp3", "second.mp3"]
+    assert not main._waiting
+    assert main._analysis_admitted == 0
+
+
+@pytest.mark.parametrize("gives_up", ["times out", "is cancelled"])
+def test_a_waiter_that_gives_up_leaves_the_line(monkeypatch, gives_up):
+    # Only the head of the line may take the slot, so a waiter left in it
+    # would block everyone behind it until their deadlines ran out.
+    monkeypatch.setattr(main, "ANALYSIS_WAIT_SECONDS", 0.3)
+    monkeypatch.setattr(main, "_analyse_upload", lambda file: {"ok": True})
+
+    async def scenario():
+        transport = httpx.ASGITransport(app=main.app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as http:
+            assert main._analysis_slot.acquire(timeout=1)
+            try:
+                waiter = post_from(http, "first.mp3", 1)
+                if gives_up == "times out":
+                    assert (await waiter).status_code == 503
+                else:
+                    await asyncio.sleep(0.1)
+                    waiter.cancel()
+                    with pytest.raises(asyncio.CancelledError):
+                        await waiter
+            finally:
+                main._analysis_slot.release()
+            return await post_from(http, "second.mp3", 2)
+
+    assert asyncio.run(scenario()).status_code == 200
+    assert not main._waiting
+    assert main._analysis_admitted == 0
+
+
+def test_a_cancelled_analysis_keeps_the_slot_and_its_upload_until_it_ends(monkeypatch):
+    # A thread cannot be stopped. Releasing on cancellation let a second
+    # analysis start beside the first, and closed the upload under it.
+    started = threading.Event()
+    seen = {}
+
+    def stand_in(file):
+        started.set()
+        time.sleep(0.5)
+        seen["upload closed"] = file.file.closed
+        seen["slot free"] = main._analysis_slot.acquire(blocking=False)
+        if seen["slot free"]:
+            main._analysis_slot.release()
+        return {"ok": True}
+
+    monkeypatch.setattr(main, "_analyse_upload", stand_in)
+
+    async def scenario():
+        transport = httpx.ASGITransport(app=main.app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as http:
+            request = post_from(http, "song.mp3", 1)
+            while not started.is_set():
+                await asyncio.sleep(0.01)
+            request.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await request
+            return dict(seen)
+
+    assert asyncio.run(scenario()) == {"upload closed": False, "slot free": False}
+    assert main._analysis_slot.acquire(blocking=False)
+    main._analysis_slot.release()
+    assert main._analysis_admitted == 0
 
 
 def test_the_slot_is_released_after_a_failed_analysis():
