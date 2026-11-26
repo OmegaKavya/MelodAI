@@ -316,6 +316,21 @@ def test_an_undeclared_body_is_cut_off_at_the_cap(monkeypatch):
     assert consumed <= main.MAX_BODY_BYTES + 64 * 1024
 
 
+@pytest.mark.parametrize("header_chunk", [7, 64 * 1024])
+def test_a_disallowed_file_is_refused_at_its_headers_before_its_body(header_chunk):
+    # The extension was checked once the form was parsed, by which point up
+    # to 25 MB of a .txt had been received and spooled. Headers split across
+    # small chunks must be caught as early as headers that arrive whole.
+    body = multipart("notes.txt", b"x" * (4 * 1024 * 1024))
+    headers_end = body.index(b"\r\n\r\n") + 4
+    head, rest = body[:headers_end], body[headers_end:]
+    chunks = ([head[i:i + header_chunk] for i in range(0, len(head), header_chunk)]
+              + [rest[i:i + 64 * 1024] for i in range(0, len(rest), 64 * 1024)])
+    status, _, consumed = raw_post(chunks)
+    assert status == 415
+    assert consumed == headers_end
+
+
 def test_a_file_right_at_the_limit_still_fits_in_the_body(monkeypatch):
     monkeypatch.setattr(main, "_analyse_upload",
                         lambda file: {"bytes": len(file.file.read())})

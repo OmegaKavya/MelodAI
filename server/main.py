@@ -26,6 +26,8 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from python_multipart import MultipartParser
+from python_multipart.multipart import parse_options_header
 from starlette.datastructures import UploadFile
 
 from melodai.runtime import Runtime, pretty_title
@@ -357,6 +359,65 @@ def _capped(request: Request):
     return Request(request.scope, receive)
 
 
+def _audio_only(request: Request):
+    """The same request, refused as soon as the file's part headers name a
+    format this does not read.
+
+    The form parser writes a part's body to a spooled file before the handler
+    can see its name, so a check made afterwards let a .txt of up to 25 MB
+    arrive and be spooled before the 415. This reads the part headers as they
+    stream in, which costs milliseconds even over a full 25 MB body.
+    """
+    content_type, params = parse_options_header(request.headers.get("content-type", ""))
+    boundary = params.get(b"boundary")
+    # Anything else gives the form no file at all, which is already a 422.
+    if content_type != b"multipart/form-data" or not boundary:
+        return request
+
+    header = {"name": b"", "value": b"", "disposition": b""}
+
+    def on_header_field(data, start, end):
+        header["name"] += data[start:end]
+
+    def on_header_value(data, start, end):
+        header["value"] += data[start:end]
+
+    def on_header_end():
+        if header["name"].lower() == b"content-disposition":
+            header["disposition"] = header["value"]
+        header["name"] = header["value"] = b""
+
+    def on_headers_finished():
+        _, options = parse_options_header(header["disposition"])
+        header["disposition"] = b""
+        # The form hands the handler the last part named "file", which is not
+        # known until the body ends, so every one of them has to pass.
+        if options.get(b"name") != b"file" or b"filename" not in options:
+            return
+        filename = options[b"filename"].decode("utf-8", "replace")
+        suffix = os.path.splitext(filename)[1].lower()
+        if suffix not in ALLOWED:
+            raise HTTPException(
+                status_code=415,
+                detail=f"{suffix or 'A file with no extension'} is not an audio "
+                       f"format this reads. {FORMATS} work.",
+            )
+
+    parser = MultipartParser(boundary, {
+        "on_header_field": on_header_field,
+        "on_header_value": on_header_value,
+        "on_header_end": on_header_end,
+        "on_headers_finished": on_headers_finished,
+    })
+
+    async def receive():
+        message = await request.receive()
+        parser.write(message.get("body", b""))
+        return message
+
+    return Request(request.scope, receive)
+
+
 def _rate_limit(request: Request):
     """Per-IP sliding window over the analyse endpoint.
 
@@ -437,20 +498,13 @@ async def analyse(request: Request):
         raise _busy()
 
     # Closing the form deletes its spooled temporary file, on every path out.
-    async with _capped(request).form() as form:
+    # The file's name is checked as its part headers arrive, so a wrong one is
+    # refused without the rest of the body being read. An extensionless upload
+    # once went straight to the audio decoders.
+    async with _audio_only(_capped(request)).form() as form:
         file = form.get("file")
         if not isinstance(file, UploadFile):
             raise HTTPException(status_code=422, detail="No file was attached.")
-
-        # Checked before the analysis reads a byte of it. An extensionless
-        # upload once went straight to the audio decoders.
-        suffix = os.path.splitext(file.filename or "")[1].lower()
-        if suffix not in ALLOWED:
-            raise HTTPException(
-                status_code=415,
-                detail=f"{suffix or 'A file with no extension'} is not an audio "
-                       f"format this reads. {FORMATS} work.",
-            )
 
         # Before admission, so a file the analysis would refuse does not wait
         # for the slot first.
