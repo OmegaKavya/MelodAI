@@ -19,6 +19,7 @@ import threading
 import time
 from collections import deque
 
+import anyio
 import librosa
 import numpy as np
 from fastapi import FastAPI, HTTPException, Request
@@ -328,15 +329,23 @@ async def _until_done(fn, *args):
     Cancellation is held back until the thread finishes, then re-raised.
     """
     work = asyncio.ensure_future(run_in_threadpool(fn, *args))
-    cancelled = None
-    while not work.done():
-        try:
-            await asyncio.wait({work})
-        except asyncio.CancelledError as error:
-            cancelled = error
-    if cancelled is not None:
-        raise cancelled
-    return work.result()
+    try:
+        # Shielded, or cancelling this await would cancel the work task too,
+        # and run_in_threadpool would return with the thread still running.
+        return await asyncio.shield(work)
+    except asyncio.CancelledError:
+        # An anyio cancel scope, which is how Starlette cancels a request,
+        # re-delivers its cancellation at every await until the scope exits,
+        # so a plain retry loop would spin until the thread ended. The shield
+        # scope holds that off; a second task.cancel() still gets through,
+        # and is absorbed because the first is re-raised anyway.
+        with anyio.CancelScope(shield=True):
+            while not work.done():
+                try:
+                    await asyncio.wait({work})
+                except asyncio.CancelledError:
+                    pass
+        raise
 
 
 def _capped(request: Request):

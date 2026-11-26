@@ -107,7 +107,7 @@ python scripts/yamnet_embeddings.py           # embeddings, cached
 python scripts/build_app_assets.py            # energy model, corpus, projector
 python scripts/evaluate_song_level.py         # honest per-song evaluation
 python scripts/experiment_taxonomy.py         # the grouping sweep
-pytest tests/                                 # 37 tests
+pytest tests/                                 # 39 tests
 (cd web && npm test)                          # 5 tests
 ```
 

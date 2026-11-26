@@ -168,6 +168,49 @@ def test_a_cancelled_analysis_keeps_the_slot_and_its_upload_until_it_ends(monkey
     assert main._analysis_admitted == 0
 
 
+def test_a_scope_cancelled_analysis_waits_without_spinning():
+    # Starlette cancels a request through an anyio cancel scope, which raises
+    # again at every await until the scope exits. Catching that in a loop
+    # spun the event loop for as long as the thread ran.
+    finished = threading.Event()
+
+    def analysis():
+        time.sleep(1.0)
+        finished.set()
+
+    async def scenario():
+        cpu = time.process_time()
+        with anyio.move_on_after(0.05) as scope:
+            await main._until_done(analysis)
+        return scope.cancelled_caught, finished.is_set(), time.process_time() - cpu
+
+    cancelled, thread_done, cpu_seconds = asyncio.run(scenario())
+    assert cancelled
+    assert thread_done
+    # Waiting costs about 0.01 s of CPU here; the spinning loop cost 0.35 s.
+    assert cpu_seconds < 0.1
+
+
+def test_a_second_cancel_still_waits_for_the_thread():
+    finished = threading.Event()
+
+    def analysis():
+        time.sleep(0.3)
+        finished.set()
+
+    async def scenario():
+        task = asyncio.ensure_future(main._until_done(analysis))
+        await asyncio.sleep(0.05)
+        task.cancel()
+        await asyncio.sleep(0.05)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        return finished.is_set()
+
+    assert asyncio.run(scenario())
+
+
 def test_the_slot_is_released_after_a_failed_analysis():
     # An empty upload fails inside the analysis (400). If the slot leaked,
     # every later request would 503.
