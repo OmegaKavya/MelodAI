@@ -79,7 +79,7 @@ TITLE_WORDS = 4
 
 def pretty_title(name):
     """A filename, read back as a song title."""
-    stem = re.sub(r"\.(mp3|wav|m4a|flac)$", "", str(name), flags=re.I)
+    stem = re.sub(r"\.(mp3|wav|m4a|flac|ogg)$", "", str(name), flags=re.I)
     parts = [p for p in re.split(r"[_\-\s]+", stem) if p]
     keep = []
     for part in parts:

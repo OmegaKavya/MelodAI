@@ -39,7 +39,7 @@ flowchart LR
 
     TR[Training: scripts/generate_smart_segments.py] -.->|same module| REP
     TR --> AUG[Augmentation: pitch +/-2 st, time 1.1x]
-    AUG --> DS[(1,124 spectrograms from 148 songs)]
+    AUG --> DS[(1,124 spectrograms from 148 files, 136 distinct songs)]
     DS --> M
 ```
 
@@ -50,7 +50,7 @@ flowchart LR
 ### Presentation Layer (`app.py`)
 React client built by Vite and served as static files from Firebase Hosting; FastAPI service on Render behind `/api`. The two are separate origins, so the API carries an explicit CORS allowlist.
 
-The client accepts an MP3, WAV, FLAC, M4A, OGG or AAC upload. It draws the exact three-channel image the network receives, with the per-window energy curve overlaid on the same time axis, so a preprocessing fault is visible rather than silent. The corpus map is baked into the bundle at build time by `scripts/bake_corpus.py`, so the page is complete on first paint without touching the API — which matters, because a free instance sleeps after fifteen minutes.
+The client accepts an MP3, WAV, FLAC or OGG upload, the formats libsndfile decodes from memory. M4A and AAC are refused up front, since they never decoded. It draws the exact three-channel image the network receives, with the per-window energy curve overlaid on the same time axis, so a preprocessing fault is visible rather than silent. The corpus map is baked into the bundle at build time by `scripts/bake_corpus.py`, so the page is complete on first paint without touching the API, which matters because a free instance sleeps after fifteen minutes.
 
 ### Representation Layer (`melodai/spectrogram.py`)
 The single source of truth for turning audio into model input, imported by both the app and the training scripts. Exposes `hybrid_image`, `to_model_input`, `segments` and `predict`. This module exists because its absence was a defect: training and serving each built their own representation and silently diverged (see §4).
@@ -225,7 +225,7 @@ One misread song moves the figure by about three points. `scripts/evaluate_song_
 
 ### Honest performance characteristics
 - Peaceful at 27% F1 means the model effectively discriminates two classes, not three; roughly 70% of Peaceful samples are read as Emotional.
-- 148 songs is a small corpus for three-class audio classification. 66% against a 33% chance baseline is genuine learning, not a strong classifier.
+- 136 distinct songs is a small corpus for three-class audio classification. 66% against a 33% chance baseline is genuine learning, not a strong classifier.
 - Mood is not categorical. A valence/arousal regression would describe the phenomenon more honestly than three discrete labels.
 
 ---

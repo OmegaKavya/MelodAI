@@ -1,2 +1,3 @@
-# librosa falls back to audioread for formats libsndfile cannot decode (m4a).
+# librosa falls back to audioread (ffmpeg) only when given a file path. The
+# server decodes uploads from memory, so M4A and AAC are refused, not decoded.
 ffmpeg

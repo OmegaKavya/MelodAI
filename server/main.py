@@ -8,6 +8,7 @@ The spectrogram leaves here as raw bytes rather than a rendered PNG. The
 client draws it, which keeps matplotlib and OpenCV out of the server and lets
 the picture respond to a cursor instead of sitting there as a flat image.
 """
+import asyncio
 import base64
 import ctypes
 import ctypes.util
@@ -20,10 +21,12 @@ from collections import deque
 
 import librosa
 import numpy as np
-from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.datastructures import UploadFile
 
 from melodai.runtime import Runtime, pretty_title
 from melodai.spectrogram import hybrid_image
@@ -45,6 +48,10 @@ MAX_BYTES = 25 * 1024 * 1024
 # refused long before it can matter, large enough not to make syscalls the
 # bottleneck.
 CHUNK_BYTES = 64 * 1024
+# The request carries the file plus its multipart framing, the boundary and
+# part headers, which come to a few hundred bytes. The body cap sits a little
+# above the file cap so a file right at the limit still arrives whole.
+MAX_BODY_BYTES = MAX_BYTES + 64 * 1024
 
 # One analysis is several seconds of CPU on a fractional instance, so an
 # unthrottled endpoint is a denial of service with no exploit required. An
@@ -53,10 +60,15 @@ CHUNK_BYTES = 64 * 1024
 RATE_MAX = 10
 RATE_WINDOW = 60.0
 
-# Checked before decoding. The decoder would reject most of these anyway, but
-# it reads the whole file first, and the message it gives is about codecs
-# rather than about what this page wants.
-ALLOWED = {".mp3", ".wav", ".flac", ".m4a", ".ogg", ".aac"}
+# Checked before decoding. The decoder would reject the rest anyway, but it
+# reads the whole file first, and the message it gives is about codecs rather
+# than about what this page wants.
+#
+# Exactly what libsndfile decodes from memory. M4A and AAC are absent because
+# they never could be: librosa only falls back to audioread, and so to ffmpeg,
+# when given a path, and an upload is decoded from bytes.
+ALLOWED = {".mp3", ".wav", ".flac", ".ogg"}
+FORMATS = "MP3, WAV, FLAC and OGG"
 
 # The spectrogram is sent at the size it will be drawn at. Full resolution is
 # 1723 columns for 20 seconds, which no screen resolves and no one should pay
@@ -163,7 +175,7 @@ def _decode(data: bytes):
     except Exception as error:  # noqa: BLE001 - surfaced to the client as 400
         raise HTTPException(
             status_code=400,
-            detail="That file could not be decoded. MP3, WAV and FLAC work.",
+            detail=f"That file could not be decoded. {FORMATS} work.",
         ) from error
     if len(y) < sr:
         raise HTTPException(status_code=400, detail="That clip is under a second long.")
@@ -201,8 +213,11 @@ def _spectrogram_payload(y):
     }
 
 
+# Async with nothing to await, so it is answered on the event loop and never
+# waits behind the worker threads. Render restarts the service when this is
+# slow, so it must not depend on how busy the analysis is.
 @app.get("/api/health")
-def health():
+async def health():
     return {"status": "ok", "ready": runtime is not None}
 
 
@@ -219,13 +234,89 @@ _rate_lock = threading.Lock()
 # would otherwise grow the map without bound.
 RATE_MAX_TRACKED = 4096
 
-# One analysis at a time. FastAPI runs a sync endpoint on a 40-thread pool, and
-# one analysis already plateaus near 440 MB on a 512 MB instance, so two
-# overlapping uploads were enough to get the process killed for everyone.
-# Taken before the upload is read, so a waiting request holds no audio in
-# memory (the multipart body is spooled to disk by then).
+# One analysis at a time. One analysis already plateaus near 440 MB on a
+# 512 MB instance, so two overlapping uploads were enough to get the process
+# killed for everyone.
 _analysis_slot = threading.BoundedSemaphore(1)
 ANALYSIS_WAIT_SECONDS = 30
+
+# How many uploads may wait for the slot; any more are refused at once. They
+# wait on the event loop, not in a worker thread: when each waiter parked a
+# thread, forty of them filled the pool and /api/health went unanswered for
+# thirty seconds.
+ANALYSIS_QUEUE = 2
+# The running analysis plus those waiting for the slot.
+_analysis_admitted = 0
+_admission_lock = threading.Lock()
+# Polled rather than awaited on an asyncio primitive, which binds itself to
+# the first event loop that waits on it. One loop serves production, but the
+# test client runs each request on a fresh one.
+ANALYSIS_POLL_SECONDS = 0.1
+
+
+def _busy():
+    return HTTPException(
+        status_code=503,
+        detail="Someone else's song is being analysed. Try again in a "
+               "few seconds.",
+        headers={"Retry-After": "10"},
+    )
+
+
+def _too_large():
+    return HTTPException(
+        status_code=413,
+        detail="That file is over the 25 MB limit, which is a full "
+               "length song at a normal bitrate.",
+    )
+
+
+def _queue_full():
+    with _admission_lock:
+        return _analysis_admitted >= 1 + ANALYSIS_QUEUE
+
+
+def _admit():
+    global _analysis_admitted
+    with _admission_lock:
+        if _analysis_admitted >= 1 + ANALYSIS_QUEUE:
+            return False
+        _analysis_admitted += 1
+        return True
+
+
+def _leave():
+    global _analysis_admitted
+    with _admission_lock:
+        _analysis_admitted -= 1
+
+
+async def _take_slot():
+    deadline = time.monotonic() + ANALYSIS_WAIT_SECONDS
+    while not _analysis_slot.acquire(blocking=False):
+        if time.monotonic() >= deadline:
+            raise _busy()
+        await asyncio.sleep(ANALYSIS_POLL_SECONDS)
+
+
+def _capped(request: Request):
+    """The same request, refused once its body passes MAX_BODY_BYTES.
+
+    Content-Length is checked first but is only a claim, and a chunked upload
+    sends none, so the cap is also applied to the bytes as they arrive.
+    Without it the multipart parser spools a body of any size to disk.
+    """
+    received = 0
+
+    async def receive():
+        nonlocal received
+        message = await request.receive()
+        received += len(message.get("body", b""))
+        if received > MAX_BODY_BYTES:
+            raise _too_large()
+        return message
+
+    return Request(request.scope, receive)
 
 
 def _rate_limit(request: Request):
@@ -279,41 +370,63 @@ def _rate_limit(request: Request):
                     _rate_hits.pop(key, None)
 
 
-@app.post("/api/analyse")
-def analyse(request: Request, file: UploadFile = File(...)):
-    """Deliberately a sync def.
+# Declared by hand because the body is parsed by hand, below, so that the
+# cheap refusals come before it rather than after.
+UPLOAD_SCHEMA = {"requestBody": {"required": True, "content": {"multipart/form-data": {
+    "schema": {"type": "object", "required": ["file"],
+               "properties": {"file": {"type": "string", "format": "binary"}}}}}}}
 
-    Decoding, YAMNet and the spectrogram are blocking CPU work. Declared
-    async, they run on the event loop and nothing else is served for the
-    duration, including /api/health. On a host that health checks every few
-    seconds and restarts on failure, that turns every analysis into a
-    restart, which is exactly what it did. As a sync def, FastAPI runs this
-    in a worker thread and the loop stays free to answer.
+
+@app.post("/api/analyse", openapi_extra=UPLOAD_SCHEMA)
+async def analyse(request: Request):
+    """Admission on the event loop, analysis in one worker thread.
+
+    Decoding, YAMNet and the spectrogram are blocking CPU work. Run on the
+    event loop, nothing else is served for the duration, including
+    /api/health. On a host that health checks every few seconds and restarts
+    on failure, that turns every analysis into a restart, which is exactly
+    what it did. So that work goes to a worker thread, and only the upload
+    holding the analysis slot ever occupies one.
     """
     _rate_limit(request)
 
-    # Checked before a byte of the body is read. It used to be checked after
-    # buffering up to 25 MB, and skipped entirely when there was no extension,
-    # so an extensionless upload went straight to the audio decoders.
-    suffix = os.path.splitext(file.filename or "")[1].lower()
-    if suffix not in ALLOWED:
-        raise HTTPException(
-            status_code=415,
-            detail=f"{suffix or 'A file with no extension'} is not an audio "
-                   "format this reads. MP3, WAV, FLAC, M4A, OGG and AAC all work.",
-        )
+    # Both before the body is read: an oversized upload by what it declares,
+    # and any upload at all when it would only be refused once it had arrived.
+    declared = request.headers.get("content-length", "")
+    if declared.isdigit() and int(declared) > MAX_BODY_BYTES:
+        raise _too_large()
+    if _queue_full():
+        raise _busy()
 
-    if not _analysis_slot.acquire(timeout=ANALYSIS_WAIT_SECONDS):
-        raise HTTPException(
-            status_code=503,
-            detail="Someone else's song is being analysed. Try again in a "
-                   "few seconds.",
-            headers={"Retry-After": "10"},
-        )
-    try:
-        return _analyse_upload(file)
-    finally:
-        _analysis_slot.release()
+    # Closing the form deletes its spooled temporary file, on every path out.
+    async with _capped(request).form() as form:
+        file = form.get("file")
+        if not isinstance(file, UploadFile):
+            raise HTTPException(status_code=422, detail="No file was attached.")
+
+        # Checked before the analysis reads a byte of it. An extensionless
+        # upload once went straight to the audio decoders.
+        suffix = os.path.splitext(file.filename or "")[1].lower()
+        if suffix not in ALLOWED:
+            raise HTTPException(
+                status_code=415,
+                detail=f"{suffix or 'A file with no extension'} is not an audio "
+                       f"format this reads. {FORMATS} work.",
+            )
+
+        if not _admit():
+            raise _busy()
+        try:
+            await _take_slot()
+            try:
+                # If this request is cancelled, run_in_threadpool still waits
+                # for the thread to finish, so the slot is never released
+                # while an analysis is running.
+                return await run_in_threadpool(_analyse_upload, file)
+            finally:
+                _analysis_slot.release()
+        finally:
+            _leave()
 
 
 def _analyse_upload(file):
@@ -329,11 +442,7 @@ def _analyse_upload(file):
             break
         total += len(chunk)
         if total > MAX_BYTES:
-            raise HTTPException(
-                status_code=413,
-                detail="That file is over the 25 MB limit, which is a full "
-                       "length song at a normal bitrate.",
-            )
+            raise _too_large()
         chunks.append(chunk)
 
     data = b"".join(chunks)

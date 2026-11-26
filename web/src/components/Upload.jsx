@@ -3,7 +3,9 @@ import Panel from "./Panel.jsx";
 import Progress from "./Progress.jsx";
 import "./Upload.css";
 
-const ACCEPT = ".mp3,.wav,.flac,.m4a,audio/*";
+// What the server can decode, and nothing broader: "audio/*" let the picker
+// offer M4A and AAC, which are refused on arrival.
+const ACCEPT = ".mp3,.wav,.flac,.ogg,audio/mpeg,audio/wav,audio/flac,audio/ogg";
 
 // Styled as a cinema ticket because that is the one object in this visual
 // language that means "put this in and something happens".

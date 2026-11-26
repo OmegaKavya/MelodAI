@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Panel from "./Panel.jsx";
 import { decodePixels } from "../api";
+import followPlayhead from "../followPlayhead";
 import "./Timeline.css";
 
 const W = 960;
@@ -60,29 +61,10 @@ export default function Timeline({ energy, duration, spectrogram, window: win, a
       .map((v, i) => `${i === 0 ? "M" : "L"}${xs(i, values.length).toFixed(1)},${ys(v, h).toFixed(1)}`)
       .join("");
 
-  // Follow the audio at frame rate rather than on `timeupdate`, which fires
-  // about four times a second and makes the cursor jump.
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return undefined;
-    let frame = 0;
-    const tick = () => {
-      setPlayhead(audio.currentTime);
-      if (!audio.paused && !audio.ended) frame = requestAnimationFrame(tick);
-    };
-    const start = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(tick); };
-    const stop = () => { cancelAnimationFrame(frame); setPlayhead(audio.currentTime || null); };
-    audio.addEventListener("play", start);
-    audio.addEventListener("pause", stop);
-    audio.addEventListener("ended", stop);
-    audio.addEventListener("seeked", tick);
-    return () => {
-      cancelAnimationFrame(frame);
-      audio.removeEventListener("play", start);
-      audio.removeEventListener("pause", stop);
-      audio.removeEventListener("ended", stop);
-      audio.removeEventListener("seeked", tick);
-    };
+    return followPlayhead(audio, setPlayhead);
   }, [audioUrl]);
 
   useEffect(() => { setPlayhead(null); }, [audioUrl]);

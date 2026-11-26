@@ -57,7 +57,7 @@ Interpretation: Energetic is acoustically distinct; emotional has moderate separ
 
 ## 2.4 Dataset Size and Splits
 
-- **Total original songs**: 148 across 5 mood categories
+- **Total original songs**: 148 downloaded files across 5 mood categories, 136 distinct songs once a song filed under more than one mood is counted once
 - **After class merging**: 3 categories (energetic, peaceful, emotional)
 - **Training samples**: 1,124 spectrograms after segmentation & augmentation
   - Energetic: 228 samples
